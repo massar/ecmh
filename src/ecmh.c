@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.c,v 1.14 2004/10/08 17:24:11 fuzzel Exp $
- $Date: 2004/10/08 17:24:11 $
+ $Id: ecmh.c,v 1.15 2004/10/08 17:38:06 fuzzel Exp $
+ $Date: 2004/10/08 17:38:06 $
 ***************************************
  
    Docs:
@@ -1444,7 +1444,7 @@ void l2_eth(struct intnode *intn, struct ether_header *eth, const unsigned int l
 /* Initiliaze interfaces */
 void update_interfaces(struct intnode *intn)
 {
-	static time_t		last_update = NULL;
+	static time_t		last_update = 0;
 
 	struct intnode		*specific = intn;
 	char			buf[100];
