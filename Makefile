@@ -3,8 +3,8 @@
 #  by Jeroen Massar <jeroen@unfix.org>
 # ***************************************
 # $Author: fuzzel $
-# $Id: Makefile,v 1.15 2004/10/08 17:41:55 fuzzel Exp $
-# $Date: 2004/10/08 17:41:55 $
+# $Id: Makefile,v 1.16 2004/10/08 17:56:09 fuzzel Exp $
+# $Date: 2004/10/08 17:56:09 $
 # **************************************/
 #
 # Toplevel Makefile allowing easy distribution.
@@ -72,7 +72,6 @@ SOURCEDIRNAME := $(shell basename `pwd`)
 sbindir=/usr/sbin/
 srcdir=src/
 toolsdir=tools/
-dirname=$(basename `pwd`)
 
 all:	ecmh tools
 
@@ -121,12 +120,12 @@ dist:	tar bz2 deb debsrc rpm rpmsrc
 # tar.gz
 tar:	clean
 	-${RM} ../ecmh_${ECMH_VERSION}.tar.gz
-	cd ..; tar -zclof ecmh_${ECMH_VERSION}.tar.gz ${dirname}
+	cd ..; tar -zclof ecmh_${ECMH_VERSION}.tar.gz ${SOURCEDIRNAME}
 
 # tar.bz2
 bz2:	clean
 	-${RM} ../ecmh_${ECMH_VERSION}.tar.bz2
-	cd ..; tar -jclof ecmh_${ECMH_VERSION}.tar.bz2 * ${dirname}
+	cd ..; tar -jclof ecmh_${ECMH_VERSION}.tar.bz2 ${SOURCEDIRNAME}
 
 # .deb
 deb:	clean
