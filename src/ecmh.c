@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.c,v 1.7 2004/02/17 00:22:29 fuzzel Exp $
- $Date: 2004/02/17 00:22:29 $
+ $Id: ecmh.c,v 1.8 2004/02/17 02:11:08 fuzzel Exp $
+ $Date: 2004/02/17 02:11:08 $
 **************************************/
 //
 // Docs to check:
@@ -131,6 +131,49 @@ uint16_t ipv6_checksum(const struct ip6_hdr *ip6, uint8_t protocol, const void *
 	chksum = (uint16_t) ~chksum;
 	if (chksum == 0UL) chksum = 0xffffUL;
 	return (uint16_t)chksum;
+}
+
+/*
+ * This is used for the ICMPv6 reply code, to allow sending Hoplimit's :)
+ * Thus allowing neat tricks like traceroute6's to work.
+ */
+void icmp6_send(struct intnode *intn, const struct in6_addr *src, int type, int code)
+{
+	struct icmp6_hoplimit_packet
+	{
+		struct ip6_hdr		ip6;
+		struct icmp6_hdr	icmp6;
+		
+	} packet;
+
+	memset(&packet, 0, sizeof(packet));
+
+	// Create the IPv6 packet
+	packet.ip6.ip6_vfc		= 0x60;
+	packet.ip6.ip6_plen		= ntohs(sizeof(packet) - sizeof(packet.ip6));
+	packet.ip6.ip6_nxt		= IPPROTO_HOPOPTS;
+	packet.ip6.ip6_hlim		= 255;
+
+	// The source address must be a global IPv6 address
+	// and should be associated to the interface we
+	// are sending on
+	memcpy(&packet.ip6.ip6_src, &intn->linklocal, sizeof(packet.ip6.ip6_src));
+
+	// Target == Sender
+	memcpy(&packet.ip6.ip6_dst, src, sizeof(*src));
+
+	// ICMPv6 Error Report
+	packet.icmp6.icmp6_type		= type;
+	packet.icmp6.icmp6_code		= code;
+
+	// Calculate and fill in the checksum
+	packet.icmp6.icmp6_cksum	= ipv6_checksum(&packet.ip6, IPPROTO_ICMPV6, (uint8_t *)&packet.icmp6, sizeof(packet.icmp6));
+
+	sendpacket6(intn, (const struct ip6_hdr *)&packet, sizeof(packet));
+
+	// Increase ICMP sent statistics
+	g_conf->stat_icmp_sent++;
+	intn->stat_icmp_sent++;
 }
 
 /* MLDv1 and MLDv2 are backward compatible when doing Queries
@@ -767,7 +810,7 @@ D(
 // len		= Length of the complete packet
 // data		= the payload
 // plen		= Payload length (should match up to at least icmpv6
-void l4_ipv6_icmpv6(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t len, struct icmp6_hdr *icmpv6, const uint16_t plen)
+void l4_ipv6_icmpv6(struct intnode *intn, struct ip6_hdr *iph, const uint16_t len, struct icmp6_hdr *icmpv6, const uint16_t plen)
 {
 	uint16_t		csum;
 	struct grpintnode	*grpint;
@@ -813,7 +856,16 @@ void l4_ipv6_icmpv6(struct intnode *intn, const struct ip6_hdr *iph, const uint1
 	{
 		// We redistribute IPv6 ICMPv6 Echo Requests to the subscribers
 		// This allows hosts to ping a IPv6 Multicast address and see who is listening ;)
-		l4_ipv6_multicast(intn, iph, len);
+
+		// Decrease the hoplimit
+		iph->ip6_hlim--;
+		if (iph->ip6_hlim == 0)
+		{
+			// Send a time_exceed_transit error
+			icmp6_send(intn, &iph->ip6_src, ICMP6_TIME_EXCEEDED, ICMP6_TIME_EXCEED_TRANSIT);
+		}
+		// Send this packet along it's way
+		else l4_ipv6_multicast(intn, iph, len);
 	}
 	else
 	{
@@ -850,7 +902,7 @@ void l4_ipv6_icmpv6(struct intnode *intn, const struct ip6_hdr *iph, const uint1
 	return;
 }
 
-void l3_ipv6(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t len)
+void l3_ipv6(struct intnode *intn, struct ip6_hdr *iph, const uint16_t len)
 {
 	struct ip6_ext		*ipe;
 	uint8_t			ipe_type;
@@ -1447,7 +1499,7 @@ int main(int argc, char *argv[], char *envp[])
 		if (hdr_ip->ip_v == 4) l3_ipv4(intn, buffer, len);
 		else
 #endif //ECMH_SUPPORT_IPV4
-		if (hdr_ip->ip_v == 6) l3_ipv6(intn, (const struct ip6_hdr *)buffer, len);
+		if (hdr_ip->ip_v == 6) l3_ipv6(intn, (struct ip6_hdr *)buffer, len);
 
 		// Ignore the rest
 //		D(else dolog(LOG_DEBUG, "%5s Unknown IP version %d\n", intn->name, hdr_ip->ip_v);)
