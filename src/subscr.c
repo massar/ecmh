@@ -3,14 +3,14 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: subscr.c,v 1.3 2004/02/15 19:51:06 fuzzel Exp $
- $Date: 2004/02/15 19:51:06 $
+ $Id: subscr.c,v 1.4 2004/02/16 01:05:31 fuzzel Exp $
+ $Date: 2004/02/16 01:05:31 $
 **************************************/
 
 #include "ecmh.h"
 
 // Subscription Node
-struct subscrnode *subscr_create(const struct in6_addr *ipv6)
+struct subscrnode *subscr_create(const struct in6_addr *ipv6, int mode)
 {
 	struct subscrnode *subscrn = malloc(sizeof(*subscrn));
 
@@ -18,6 +18,7 @@ struct subscrnode *subscr_create(const struct in6_addr *ipv6)
 
 	// Fill her in
 	memcpy(&subscrn->ipv6, ipv6, sizeof(*ipv6));
+	subscrn->mode = mode;
 	subscrn->refreshtime = time(NULL);
 
 	// All okay

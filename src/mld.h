@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: mld.h,v 1.2 2004/01/11 21:41:05 fuzzel Exp $
- $Date: 2004/01/11 21:41:05 $
+ $Id: mld.h,v 1.3 2004/02/16 01:05:31 fuzzel Exp $
+ $Date: 2004/02/16 01:05:31 $
 **************************************/
 
 // Wrappers so we don't have to change the copied stuff ;)
@@ -38,6 +38,9 @@ struct mld1 {
 
 #define ICMP6_V2_MEMBERSHIP_REPORT	206	/* MLDv2 Report */
 #define MLDv2_LISTENER_REPORT		206	/* MLDv2 Report */
+
+#define MLD_SSM_MODE_EXCLUDE		0	/* Exclude this address */
+#define MLD_SSM_MODE_INCLUDE		1	/* Include this address */
 
 /* From linux/net/ipv6/mcast.c */
 

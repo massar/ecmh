@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: grpint.c,v 1.3 2004/02/15 19:51:06 fuzzel Exp $
- $Date: 2004/02/15 19:51:06 $
+ $Id: grpint.c,v 1.4 2004/02/16 01:05:31 fuzzel Exp $
+ $Date: 2004/02/16 01:05:31 $
 **************************************/
 
 #include "ecmh.h"
@@ -53,7 +53,8 @@ struct grpintnode *grpint_find(const struct list *list, const struct intnode *in
 // ipv6		= Source IPv6 address
 //		  !ff3x::/96 : unspecified IPv6 address
 //		  ff3x::/96  : The source IPv6 address that wants to receive this S<->G channel
-bool grpint_refresh(struct grpintnode *grpintn, const struct in6_addr *ipv6)
+// mode		= MLD_SSM_MODE_*
+bool grpint_refresh(struct grpintnode *grpintn, const struct in6_addr *ipv6, int mode)
 {
 	struct subscrnode *subscrn;
 
@@ -63,7 +64,7 @@ bool grpint_refresh(struct grpintnode *grpintn, const struct in6_addr *ipv6)
 	if (!subscrn)
 	{
 		// Create the subscr node
-		subscrn = subscr_create(ipv6);
+		subscrn = subscr_create(ipv6, mode);
 
 		// Add the group to the list
 		if (subscrn)
