@@ -3,15 +3,15 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: grpint.h,v 1.3 2004/02/16 01:05:31 fuzzel Exp $
- $Date: 2004/02/16 01:05:31 $
+ $Id: grpint.h,v 1.4 2004/10/07 09:28:21 fuzzel Exp $
+ $Date: 2004/10/07 09:28:21 $
 **************************************/
 
-// The node used to hold the interfaces which a group joined
+/* The node used to hold the interfaces which a group joined */
 struct grpintnode
 {
-	struct intnode		*interface;		// The interface
-	struct list		*subscriptions;		// Subscriber list
+	struct intnode		*interface;		/* The interface */
+	struct list		*subscriptions;		/* Subscriber list */
 };
 
 struct grpintnode *grpint_create(const struct intnode *interface);

@@ -3,8 +3,8 @@
 #  by Jeroen Massar <jeroen@unfix.org>
 # ***************************************
 # $Author: fuzzel $
-# $Id: Makefile,v 1.7 2004/02/19 14:21:07 fuzzel Exp $
-# $Date: 2004/02/19 14:21:07 $
+# $Id: Makefile,v 1.8 2004/10/07 09:28:21 fuzzel Exp $
+# $Date: 2004/10/07 09:28:21 $
 # **************************************/
 #
 # Toplevel Makefile allowing easy distribution.
@@ -16,7 +16,7 @@
 ECMH=ecmh
 
 # The version of this release
-ECMH_VERSION=2004.02.18
+ECMH_VERSION=2004.10.07
 export ECMH_VERSION
 
 # ECMH Compile Time Options
@@ -27,8 +27,36 @@ export ECMH_VERSION
 # Enable Debugging     : -DDEBUG
 # Enable IPv4 Support  : -DECMH_SUPPORT_IPV4
 # Enable MLDv2 Support : -DECMH_SUPPORT_MLD2
-ECMH_OPTIONS=-O9
+ECMH_OPTIONS=-O9 -DDEBUG -DECMH_SUPPORT_MLD2 -DECMH_GETIFADDR
+
+# Not Linux? -> Enable BPF Mode
+ifeq ($(shell uname | grep -c "Linux"),0)
+ECMH_OPTIONS:=$(ECMH_OPTIONS) ECMH_BPF
+endif
+
+# Export it to the other Makefile
 export ECMH_OPTIONS
+
+# Tag it with debug when it is run with debug set
+ifeq ($(shell echo $(ECMH_OPTIONS) | grep -c "DEBUG"),1)
+ECMH_VERSION:=$(ECMH_VERSION)-debug
+endif
+
+# Do not print "Entering directory ..."
+MAKEFLAGS += --no-print-directory
+
+# Misc bins, making it easy to quiet them :)
+RM=@rm -f
+MV=@mv
+MAKE:=@${MAKE}
+CP=@echo [Copy]; cp
+RPMBUILD=@echo [RPMBUILD]; rpmbuild
+RPMBUILD_SILENCE=>/dev/null 2>/dev/null
+
+# Configure a default RPMDIR
+ifeq ($(shell echo "${RPMDIR}/" | grep -c "/"),1)
+RPMDIR=/usr/src/redhat/
+endif
 
 # Change this if you want to install into another dirtree
 # Required for eg the Debian Package builder
@@ -36,9 +64,7 @@ DESTDIR=
 
 # Get the source dir, needed for eg debsrc
 SOURCEDIR := $(shell pwd)
-
-# Misc bins
-RM=rm -f
+SOURCEDIRNAME := $(shell basename `pwd`)
 
 # Paths
 sbindir=/usr/sbin/
@@ -77,7 +103,7 @@ help:
 
 install: all
 	mkdir -p $(DESTDIR)${sbindir}
-	cp src/$(ECMH) $(DESTDIR)${sbindir}
+	${CP} src/$(ECMH) $(DESTDIR)${sbindir}
 
 # Clean all the output files etc
 distclean: clean
@@ -101,28 +127,42 @@ bz2:	clean
 # .deb
 deb:	clean
 	# Copy the changelog
-	cp doc/changelog debian/changelog
+	${CP} doc/changelog debian/changelog
 	debian/rules binary
 	${MAKE} clean
 
 # Source .deb
 debsrc: clean
 	# Copy the changelog
-	cp doc/changelog debian/changelog
+	${CP} doc/changelog debian/changelog
 	cd ..; dpkg-source -b ${SOURCEDIR}; cd ${SOURCEDIR}
 	${MAKE} clean
 
 # Cleanup after debian
 debclean:
-	-rm -rf build-stamp configure-stamp debian/changelog debian/ecmh/ debian/ecmh.postinst.debhelper debian/ecmh.postrm.debhelper debian/ecmh.prerm.debhelper debian/ecmh.substvars
+	if [ -f configure-stamp ]; then debian/rules clean; fi;
 
 # RPM
-rpm:	clean
-	# TODO ;)
+rpm:	rpmclean tar
+	-${RM} ${RPMDIR}/RPMS/i386/ecmh-${ECMH_VERSION}*.rpm
+	${RPMBUILD} -tb --define 'ecmh_version ${ECMH_VERSION}' ../ecmh_${ECMH_VERSION}.tar.gz ${RPMBUILD_SILENCE}
+	${MV} ${RPMDIR}/RPMS/i386/ecmh-*.rpm ../
+	@echo "Resulting RPM's:"
+	@ls -l ../ecmh-${ECMH_VERSION}*.rpm
 	${MAKE} clean
+	@echo "RPMBuild done"
 
-rpmsrc:	clean
-	# TODO ;)
+rpmsrc:	rpmclean tar
+	-${RM} ${RPMDIR}/RPMS/i386/ecmh-${ECMH_VERSION}*src.rpm
+	${RPMBUILD} -ts --define 'ecmh_version ${PROJECT_VERSION}' ../ecmh_${ECMH_VERSION}.tar.gz ${RPMBUILD_SILENCE}
+	${MV} ${RPMDIR}/RPMS/i386/ecmh-*.src.rpm ../
+	@echo "Resulting RPM's:"
+	@ls -l ../ecmh-${ECMH_VERSION}*.rpm
+	${MAKE} clean}
+	@echo "RPMBuild-src done"
+
+rpmclean: clean
+	-${RM} ../${PROJECT}_${PROJECT_VERSION}.tar.gz
 
 # Mark targets as phony
 .PHONY : all ecmh tools install help clean dist tar bz2 deb debsrc debclean rpm rpmsrc

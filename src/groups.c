@@ -3,23 +3,23 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: groups.c,v 1.5 2004/02/17 00:22:29 fuzzel Exp $
- $Date: 2004/02/17 00:22:29 $
+ $Id: groups.c,v 1.6 2004/10/07 09:28:21 fuzzel Exp $
+ $Date: 2004/10/07 09:28:21 $
 **************************************/
 
 #include "ecmh.h"
 
-// Create a groupnode
+/* Create a groupnode */
 struct groupnode *group_create(const struct in6_addr *mca)
 {
 	struct groupnode *groupn = malloc(sizeof(struct groupnode));
 
 	if (!groupn) return NULL;
 
-	// Fill her in
+	/* Fill her in */
 	memcpy(&groupn->mca, mca, sizeof(*mca));
 
-	// Setup the list
+	/* Setup the list */
 	groupn->interfaces = list_new();
 	groupn->interfaces->del = (void(*)(void *))grpint_destroy;
 
@@ -28,11 +28,11 @@ D(
 		char mca_txt[INET6_ADDRSTRLEN];
 		memset(mca_txt,0,sizeof(mca_txt));
 		inet_ntop(AF_INET6, mca, mca_txt, sizeof(mca_txt));
-		dolog(LOG_WARNING, "Created group %s\n", mca_txt);
+		dolog(LOG_DEBUG, "Created group %s\n", mca_txt);
 	}
 )
 
-	// All okay
+	/* All okay */
 	return groupn;
 }
 
@@ -49,10 +49,10 @@ D(
 	}
 )
 
-	// Empty the subscriber list
+	/* Empty the subscriber list */
 	list_delete_all_node(groupn->interfaces);
 
-	// Free the node
+	/* Free the node */
 	free(groupn);
 }
 
@@ -68,9 +68,11 @@ struct groupnode *group_find(const struct in6_addr *mca)
 	return NULL;
 }
 
-// Find the groupint or create it
-// mca		= The IPv6 address of the Multicast group
-// interface	= the interface we received it on
+/*
+ * Find the groupint or create it
+ * mca		= The IPv6 address of the Multicast group
+ * interface	= the interface we received it on
+ */
 struct grpintnode *groupint_get(const struct in6_addr *mca, struct intnode *interface)
 {
 	struct groupnode	*groupn;
@@ -79,36 +81,38 @@ struct grpintnode *groupint_get(const struct in6_addr *mca, struct intnode *inte
 	struct listnode		*ln;
 	bool			forward = false;
 
-	// Find our beloved group
+	/* Find our beloved group */
 	groupn = group_find(mca);
 
 	if (!groupn)
 	{
-		// Create the group node
+		/* Create the group node */
 		groupn = group_create(mca);
 
-		// Add the group to the list
+		/* Add the group to the list */
 		if (groupn) listnode_add(g_conf->groups, (void *)groupn);
 		
 		forward = true;
 	}
 
-	// Forward it if we haven't done so for quite some time
+	/* Forward it if we haven't done so for quite some time */
 	else if ((time(NULL) - groupn->lastforward) >= ECMH_SUBSCRIPTION_TIMEOUT)
 	{
-		D(dolog(LOG_DEBUG, "Last update was %d seconds ago -> resending\n", (int)(time(NULL) - groupn->lastforward));)
+		dolog(LOG_DEBUG, "Last update was %d seconds ago -> resending\n", (int)(time(NULL) - groupn->lastforward));
 		forward = true;
 	}
 
 	if (forward)
 	{
-		// Broadcast that we want this new group
+		dolog(LOG_DEBUG, "Broadcasting group to other interfaces...\n");
+
+		/* Broadcast that we want this new group */
 		LIST_LOOP(g_conf->ints, intn, ln)
 		{
-			// Skip the interface it came from
+			/* Skip the interface it came from */
 			if (interface->ifindex == intn->ifindex) continue;
 
-			// Send the MLD Report
+			/* Send the MLD Report */
 			mld_send_report(intn, mca);
 		}
 		groupn->lastforward = time(NULL);
@@ -116,16 +120,17 @@ struct grpintnode *groupint_get(const struct in6_addr *mca, struct intnode *inte
 
 	if (!groupn) return false;
 
-	// Find the interface in this group
+	/* Find the interface in this group */
 	grpintn = grpint_find(groupn->interfaces, interface);
 
 	if (!grpintn)
 	{
-		// Create the groupinterface node
+		/* Create the groupinterface node */
 		grpintn = grpint_create(interface);
 
-		// Add the group to the list
+		/* Add the group to the list */
 		if (grpintn) listnode_add(groupn->interfaces, (void *)grpintn);
 	}
 	return grpintn;
 }
+

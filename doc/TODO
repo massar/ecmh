@@ -5,7 +5,6 @@ Following is a list of known TODO items:
 * Recode linked lists into hashes or something similar to speed up processing
 * Timing issues
 * Ignore interfaces, aka interfaces that should not be watched for MLD's nor multicast traffic
-* MLDv2 packet parsing support ----> Up Next
 * Documentation
 * Config items
 * Limits

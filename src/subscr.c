@@ -3,25 +3,35 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: subscr.c,v 1.5 2004/02/17 00:22:29 fuzzel Exp $
- $Date: 2004/02/17 00:22:29 $
+ $Id: subscr.c,v 1.6 2004/10/07 09:28:21 fuzzel Exp $
+ $Date: 2004/10/07 09:28:21 $
 **************************************/
 
 #include "ecmh.h"
 
-// Subscription Node
+/* Subscription Node */
 struct subscrnode *subscr_create(const struct in6_addr *ipv6, int mode)
 {
 	struct subscrnode *subscrn = malloc(sizeof(*subscrn));
 
 	if (!subscrn) return NULL;
 
-	// Fill her in
+	/* Fill her in */
 	memcpy(&subscrn->ipv6, ipv6, sizeof(*ipv6));
 	subscrn->mode = mode;
 	subscrn->refreshtime = time(NULL);
 
-	// All okay
+D(
+	{
+		char addr[INET6_ADDRSTRLEN];
+		memset(addr,0,sizeof(addr));
+		inet_ntop(AF_INET6, &subscrn->ipv6, addr, sizeof(addr));
+		dolog(LOG_DEBUG, "Adding subscription %s (%s)\n", addr,
+			subscrn->mode == MLD2_MODE_IS_INCLUDE ? "INCLUDE" : "EXCLUDE");
+	}
+)
+
+	/* All okay */
 	return subscrn;
 }
 
@@ -34,11 +44,12 @@ D(
 		char addr[INET6_ADDRSTRLEN];
 		memset(addr,0,sizeof(addr));
 		inet_ntop(AF_INET6, &subscrn->ipv6, addr, sizeof(addr));
-		dolog(LOG_DEBUG, "Destroying subscription %s\n", addr);
+		dolog(LOG_DEBUG, "Destroying subscription %s (%s)\n", addr,
+			subscrn->mode == MLD2_MODE_IS_INCLUDE ? "INCLUDE" : "EXCLUDE");
 	}
 )
 
-	// Free the node
+	/* Free the node */
 	free(subscrn);
 }
 
@@ -63,9 +74,9 @@ bool subscr_unsub(struct list *list, const struct in6_addr *ipv6)
 	{
 		if (IN6_ARE_ADDR_EQUAL(ipv6, &subscrn->ipv6))
 		{
-			// Delete the entry from the list
+			/* Delete the entry from the list */
 			list_delete_node(list, ln);
-			// Destroy the item itself
+			/* Destroy the item itself */
 			subscr_destroy(subscrn);
 			return true;
 		}

@@ -3,17 +3,17 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: groups.h,v 1.2 2004/01/11 21:41:05 fuzzel Exp $
- $Date: 2004/01/11 21:41:05 $
+ $Id: groups.h,v 1.3 2004/10/07 09:28:21 fuzzel Exp $
+ $Date: 2004/10/07 09:28:21 $
 **************************************/
 
-// The node used to hold the groups we joined
+/* The node used to hold the groups we joined */
 struct groupnode
 {
-	struct in6_addr	mca;			// The Multicast IPv6 address (group)
-	struct list	*interfaces;		// The list of grpint nodes (interfaces) that
-						// are interrested in this node
-	time_t		lastforward;		// The last time we forwarded a report for this group
+	struct in6_addr	mca;		/* The Multicast IPv6 address (group) */
+	struct list	*interfaces;	/* The list of grpint nodes (interfaces) that */
+					/* are interrested in this node */
+	time_t		lastforward;	/* The last time we forwarded a report for this group */
 };
 
 struct groupnode *group_create(const struct in6_addr *mca);
