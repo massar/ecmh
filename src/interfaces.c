@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: interfaces.c,v 1.4 2004/02/15 21:23:58 fuzzel Exp $
- $Date: 2004/02/15 21:23:58 $
+ $Id: interfaces.c,v 1.5 2004/02/16 13:05:20 fuzzel Exp $
+ $Date: 2004/02/16 13:05:20 $
 **************************************/
 
 #include "ecmh.h"
@@ -101,4 +101,41 @@ struct intnode *int_find(int ifindex, bool resort)
 		}
 	}
 	return NULL;
+}
+
+// Store the version of MLD if it is lower than the old one or the old one was 0 ;)
+// We only respond MLDv1's this way when there is a MLDv1 router on the link.
+// but we respond MLDv2's when there are only MLDv2 router on the link
+// Even if we build without MLDv2 support we detect the version which
+// could be used to determine if a router can't fallback to v1 for instance
+// later on in diagnostics. When built without MLDv2 support we always do MLDv1 though.
+// Everthing higher as MLDv2 is reported as MLDv2 as we don't know about it (yet :)
+void int_set_mld_version(struct intnode *intn, int newversion)
+{
+	if (newversion == 1)
+	{
+		// Only reset the version number
+		// if it wasn't set and not v1 yet
+		if (	intn->mld_version == 0 &&
+			intn->mld_version != 1)
+		{
+			D(
+			if (intn->mld_version == 2) dolog(LOG_DEBUG, "MLDv1 Query detected on %5s, downgrading from MLDv2 to MLDv1\n", intn->name);
+			else dolog(LOG_DEBUG, "MLDv1 Query detected on %5s, setting it to MLDv1\n", intn->name);
+			)
+			intn->mld_version = 1;
+		}
+	}
+	else
+	{
+		// Only reset the version number
+		// if it wasn't set and not v1 yet and not v2 yet
+		if (	intn->mld_version == 0 &&
+			intn->mld_version != 1 &&
+			intn->mld_version != 2)
+		{
+			D(dolog(LOG_DEBUG, "MLDv2 Query detected on %5s, setting it to MLDv2\n", intn->name);)
+			intn->mld_version = 2;
+		}
+	}
 }

@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.h,v 1.4 2004/02/15 21:23:58 fuzzel Exp $
- $Date: 2004/02/15 21:23:58 $
+ $Id: ecmh.h,v 1.5 2004/02/16 13:05:20 fuzzel Exp $
+ $Date: 2004/02/16 13:05:20 $
 **************************************/
 
 #define _XOPEN_SOURCE
@@ -88,6 +88,8 @@ struct conf
 	uint64_t		stat_packets_sent;		// Number of packets forwarded
 	uint64_t		stat_bytes_received;		// Number of bytes received
 	uint64_t		stat_bytes_sent;		// Number of bytes forwarded
+	uint64_t		stat_icmp_received;		// Number of ICMP's received
+	uint64_t		stat_icmp_sent;			// Number of ICMP's sent
 };
 
 // Global Stuff

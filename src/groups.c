@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: groups.c,v 1.3 2004/02/15 19:51:06 fuzzel Exp $
- $Date: 2004/02/15 19:51:06 $
+ $Id: groups.c,v 1.4 2004/02/16 13:05:20 fuzzel Exp $
+ $Date: 2004/02/16 13:05:20 $
 **************************************/
 
 #include "ecmh.h"
@@ -90,7 +90,7 @@ struct grpintnode *groupint_get(const struct in6_addr *mca, struct intnode *inte
 			// Skip the interface it came from
 			if (interface->ifindex == intn->ifindex) continue;
 
-			// Send the MLDv1 Report
+			// Send the MLD Report
 			mld_send_report(intn, mca);
 		}
 		groupn->lastforward = time(NULL);

@@ -6,7 +6,7 @@
 # The name of the application
 ECMH=ecmh
 # The version of this release
-ECMH_VERSION=2004.01.11
+ECMH_VERSION=2004.02.16-cvs
 export ECMH_VERSION
 
 # Change this if you want to install into another dirtree

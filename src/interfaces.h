@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: interfaces.h,v 1.3 2004/02/15 19:51:06 fuzzel Exp $
- $Date: 2004/02/15 19:51:06 $
+ $Id: interfaces.h,v 1.4 2004/02/16 13:05:20 fuzzel Exp $
+ $Date: 2004/02/16 13:05:20 $
 **************************************/
 
 // The list of interfaces we do multicast on
@@ -23,9 +23,11 @@ struct intnode
 
 	// Per interface statistics
 	uint64_t		stat_packets_received;		// Number of packets received
-	uint64_t		stat_packets_sent;		// Number of packets forwarded
+	uint64_t		stat_packets_sent;		// Number of packets sent
 	uint64_t		stat_bytes_received;		// Number of bytes received
-	uint64_t		stat_bytes_sent;		// Number of bytes forwarded
+	uint64_t		stat_bytes_sent;		// Number of bytes sent
+	uint64_t		stat_icmp_received;		// Number of ICMP's received
+	uint64_t		stat_icmp_sent;			// Number of ICMP's sent
 };
 
 /* Node functions */
@@ -35,3 +37,6 @@ void int_destroy(struct intnode *intn);
 
 /* List functions */
 struct intnode *int_find(int ifindex, bool resort);
+
+/* Control function */
+void int_set_mld_version(struct intnode *intn, int newversion);

@@ -1,3 +1,12 @@
+ecmh (2004.01.16-1) unstable; urgency=low
+
+  * Fixed timing issues
+  * Complete MLDv2 disabling
+  * Source code cleanup
+  * Added more beta MLDv2 functionality
+
+ -- Jeroen Massar <jeroen@unfix.org>  Sun, 16 Feb 2004 02:41:00 +0100
+
 ecmh (2004.01.11-1) unstable; urgency=low
 
   * Comparing argv[2] != "-f" (Reported by Guus Sliepen)
@@ -10,7 +19,6 @@ ecmh (2004.01.11-1) unstable; urgency=low
   * Fixed starttime in dump output
   * Added subscription ages in stats output
   * Stats file is now opened
-  * We 
   * Shutdown is now showed in the log
   * Added cleanup at the end
 
