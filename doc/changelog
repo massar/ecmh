@@ -1,3 +1,15 @@
+ecmh (2004.10.09-1) stable; urgency=low
+
+  * Releasing as 2004.10.09.
+  * Multiple IPv4 aliases on one interface and then using an alias
+    for tunneling
+  * Ignoring of 6to4 anycast address when wanting to do proto-41
+  * Only update the interface list every 5 minutes avoiding
+    refreshes when there is nothing to refresh or when it
+    just has been done.
+
+ -- Jeroen Massar <jeroen@unfix.org>  Sat, 9 Oct 2004 00:00:42 +0200
+
 ecmh (2004.10.08-1) stable; urgency=low
 
   * Releasing as 2004.10.08.

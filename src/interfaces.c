@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: interfaces.c,v 1.8 2004/10/07 09:28:21 fuzzel Exp $
- $Date: 2004/10/07 09:28:21 $
+ $Id: interfaces.c,v 1.9 2004/10/08 17:24:11 fuzzel Exp $
+ $Date: 2004/10/08 17:24:11 $
 **************************************/
 
 #include "ecmh.h"
@@ -162,12 +162,14 @@ bool int_create_bpf(struct intnode *intn, bool tunnel)
 		intn->master = int_find_ipv4(true, &((struct sockaddr_in *)&iflr.addr)->sin_addr, false);
 		if (!intn->master)
 		{
-			dolog(LOG_ERR, "Couldn't find the master device for %s\n", intn->name);
+			char buf[1024];
+			inet_ntop(AF_INET, &((struct sockaddr_in *)&iflr.addr)->sin_addr, (char *)&buf, sizeof(buf));
+			dolog(LOG_ERR, "Couldn't find the master device for %s (%s)\n", intn->name, buf);
 			return false;
 		}
 
 		/* Store the addresses */
-		memcpy(&intn->ipv4_local, &((struct sockaddr_in *)&iflr.addr)->sin_addr, sizeof(intn->ipv4_local));
+		memcpy(&intn->ipv4_local[0], &((struct sockaddr_in *)&iflr.addr)->sin_addr, sizeof(intn->ipv4_local[0]));
 		memcpy(&intn->ipv4_remote, &((struct sockaddr_in *)&iflr.dstaddr)->sin_addr, sizeof(intn->ipv4_remote));
 	}
 	return true;
@@ -323,13 +325,20 @@ struct intnode *int_find_ipv4(bool local, struct in_addr *ipv4, bool resort)
 {
 	struct intnode	*intn;
 	struct listnode	*ln;
+	int		num = 0;
 
 	LIST_LOOP(g_conf->ints, intn, ln)
 	{
-		if (memcmp(local ? &intn->ipv4_local : &intn->ipv4_remote, ipv4, sizeof(ipv4)) == 0)
+		for (num=0;num<INTNODE_MAXIPV4;num++)
 		{
-			if (resort) list_movefront_node(g_conf->ints, ln);
-			return intn;
+			if (memcmp(local ? &intn->ipv4_local[num] : &intn->ipv4_remote, ipv4, sizeof(ipv4)) == 0)
+			{
+				if (resort) list_movefront_node(g_conf->ints, ln);
+				return intn;
+			}
+
+			/* Only one remote IPv4 address */
+			if (!local) break;
 		}
 	}
 	return NULL;
@@ -399,39 +408,57 @@ void int_set_mld_version(struct intnode *intn, unsigned int newversion)
 void local_update(struct intnode *intn)
 {
 	struct localnode	*localn;
+	int			num=0;
+	struct in_addr		any;
 
-	/* Try to find it first */
-	localn = local_find(&intn->ipv4_local);
-	/* Already there?  */
-	if (localn) return;
+	/* Any IPv4 address */
+	memset(&any, 0, sizeof(any));
 
-	/* Allocate a piece of memory */
-	localn = (struct localnode *)malloc(sizeof(*localn));
-	if (!localn)
+	for (num=0;num<INTNODE_MAXIPV4;num++)
 	{
-		dolog(LOG_ERR, "Couldn't allocate memory for localnode\n");
-		return;
+		/* Empty ? */
+		if (memcmp(&intn->ipv4_local[num], &any, sizeof(any)) == 0)
+		{
+			continue;
+		}
+
+		/* Try to find it first */
+		localn = local_find(&intn->ipv4_local[num]);
+		/* Already there?  */
+		if (localn) continue;
+
+		/* Allocate a piece of memory */
+		localn = (struct localnode *)malloc(sizeof(*localn));
+		if (!localn)
+		{
+			dolog(LOG_ERR, "Couldn't allocate memory for localnode\n");
+			continue;
+		}
+
+		/* Fill it in */
+		localn->intn = intn;
+
+		dolog(LOG_DEBUG, "Adding %s to local tunnel-intercepting-interfaces\n", intn->name);
+
+		/* Add it to the list */
+		listnode_add(g_conf->locals, localn);
 	}
-
-	/* Fill it in */
-	localn->intn = intn;
-
-	dolog(LOG_DEBUG, "Adding %s to local tunnel-intercepting-interfaces\n", intn->name);
-
-	/* Add it to the list */
-	listnode_add(g_conf->locals, localn);
 }
 
 struct localnode *local_find(struct in_addr *ipv4)
 {
 	struct localnode	*localn;
 	struct listnode		*ln;
+	int			num=0;
 
 	LIST_LOOP(g_conf->locals, localn, ln)
 	{
-		if (memcmp(&localn->intn->ipv4_local, ipv4, sizeof(ipv4)) == 0)
+		for (num=0;num<INTNODE_MAXIPV4;num++)
 		{
-			return localn;
+			if (memcmp(&localn->intn->ipv4_local[num], ipv4, sizeof(ipv4)) == 0)
+			{
+				return localn;
+			}
 		}
 	}
 	return NULL;

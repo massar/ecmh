@@ -3,9 +3,11 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: interfaces.h,v 1.6 2004/10/07 09:28:21 fuzzel Exp $
- $Date: 2004/10/07 09:28:21 $
+ $Id: interfaces.h,v 1.7 2004/10/08 17:24:11 fuzzel Exp $
+ $Date: 2004/10/08 17:24:11 $
 **************************************/
+
+#define INTNODE_MAXIPV4 4			/* Maximum number of IPv4 aliases */
 
 /*
  * The list of interfaces we do multicast on
@@ -28,7 +30,7 @@ struct intnode
 	unsigned int	dlt;			/* DLT of the interface (DLT_EN10MB or DLT_NULL)*/
 	unsigned int	bufferlen;		/* The buffer length this interface expects */
 	struct intnode	*master;		/* Master interface, when this is a proto-41 tunnel */
-	struct in_addr	ipv4_local;		/* Local IPv4 address */
+	struct in_addr	ipv4_local[INTNODE_MAXIPV4]; /* Local IPv4 address */
 	struct in_addr	ipv4_remote;		/* Remote IPv4 address */
 #endif
 

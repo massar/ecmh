@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.c,v 1.13 2004/10/08 13:45:33 fuzzel Exp $
- $Date: 2004/10/08 13:45:33 $
+ $Id: ecmh.c,v 1.14 2004/10/08 17:24:11 fuzzel Exp $
+ $Date: 2004/10/08 17:24:11 $
 ***************************************
  
    Docs:
@@ -38,10 +38,16 @@ void update_interfaces(struct intnode *intn);
 void l2_ethtype(struct intnode *intn, const uint8_t *packet, const unsigned int len, const unsigned int ether_type);
 void l2_eth(struct intnode *intn, struct ether_header *eth, const unsigned int len);
 
+/*
+ * 6to4 relay address 192.88.99.1
+ * This is because some people also run 6to4 on their machines
+ * and that would cause every packet to fail
+ */
+char ipv4_6to4_relay[4] = { '\xc0', '\x58', '\x63', '\x01'};
+
 /**************************************
   Functions
 **************************************/
-
 uint16_t inchksum(const void *data, uint32_t length)
 {
 	register long		sum = 0;
@@ -263,7 +269,8 @@ void sendpacket6(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t
 		hdr_ip.ip_ttl	= 100;
 		hdr_ip.ip_p	= IPPROTO_IPV6;
 		hdr_ip.ip_sum	= 0;
-		memcpy(&hdr_ip.ip_src, &intn->master->ipv4_local, sizeof(hdr_ip.ip_src));
+		/* The first ipv4_local is the interface, the rest should be empty for PtP interfaces */
+		memcpy(&hdr_ip.ip_src, &intn->ipv4_local[0], sizeof(hdr_ip.ip_src));
 		memcpy(&hdr_ip.ip_dst, &intn->ipv4_remote, sizeof(hdr_ip.ip_dst));
 
 		/* Calculate the checksum */
@@ -762,15 +769,18 @@ void l4_ipv4_proto41(struct intnode *intn, struct ip *iph, const uint8_t *packet
 	}
 	if (!tun)
 	{
+		static int count = 0;
 	    	char buf[1024],buf2[1024];
 	    	inet_ntop(AF_INET, &iph->ip_src, (char *)&buf, sizeof(buf));
 	    	inet_ntop(AF_INET, &iph->ip_dst, (char *)&buf2, sizeof(buf));
-		dolog(LOG_ERR, "Couldn't find proto-41 tunnel %s->%s\n", buf);
+		dolog(LOG_ERR, "Couldn't find proto-41 tunnel %s->%s\n", buf, buf2);
+
+		if ((count++) == 15) exit(0);
 		return;
 	}
 
 	/* Send it through our decoder again, looking as it is a native IPv6 received on intn ;) */
-	dolog(LOG_DEBUG, "Proto-41 from %x->%x on %s, tunnel %s\n", iph->ip_src, iph->ip_dst, intn->name, tun->name);
+	dolog(LOG_DEBUG, "Proto-41 from %08x->%08x on %s, tunnel %s\n", iph->ip_src, iph->ip_dst, intn->name, tun->name);
 	l2_ethtype(tun, packet, len, ETH_P_IPV6);
 	return;
 }
@@ -779,6 +789,8 @@ void l4_ipv4_proto41(struct intnode *intn, struct ip *iph, const uint8_t *packet
 /* IPv4 */
 void l3_ipv4(struct intnode *intn, struct ip *iph, const uint16_t len)
 {
+	char src[100], dst[100], to4[100];
+
 	if (iph->ip_v != 4)
 	{
 		D(dolog(LOG_DEBUG, "%5s L3:IPv4: IP version %u not supported\n", intn->name, iph->ip_v);)
@@ -799,14 +811,20 @@ void l3_ipv4(struct intnode *intn, struct ip *iph, const uint16_t len)
 		return;
 #endif
 	}
-/*
-D(
+
+#if 0
 	inet_ntop(AF_INET, &iph->ip_src, src, sizeof(src));
 	inet_ntop(AF_INET, &iph->ip_dst, dst, sizeof(dst));
+	inet_ntop(AF_INET, &ipv4_6to4_relay, to4, sizeof(to4));
 
-	dolog(LOG_DEBUG, "%5s L3:IPv4: IPv%01u %-16s %-16s %4u\n", intn->name, iph->ip_v, src, dst, ntohs(iph->ip_len));
-)
-*/
+	dolog(LOG_DEBUG, "%5s L3:IPv4: IPv%01u %-16s %-16s %4u (%-16s)\n", intn->name, iph->ip_v, src, dst, ntohs(iph->ip_len), to4);
+#endif
+	/* Ignore traffic from/to 6to4 relay address */
+	if (memcmp(&iph->ip_src, &ipv4_6to4_relay, 4) == 0 ||
+	    memcmp(&iph->ip_dst, &ipv4_6to4_relay, 4) == 0)
+	{
+		return;
+	}
 
 	/* Go to Layer 4 */
 #ifdef ECMH_SUPPORT_IPV4
@@ -1426,6 +1444,8 @@ void l2_eth(struct intnode *intn, struct ether_header *eth, const unsigned int l
 /* Initiliaze interfaces */
 void update_interfaces(struct intnode *intn)
 {
+	static time_t		last_update = NULL;
+
 	struct intnode		*specific = intn;
 	char			buf[100];
 	struct in6_addr		addr;
@@ -1441,6 +1461,11 @@ void update_interfaces(struct intnode *intn)
 
 #endif /* !ECMH_GETIFADDR */
 	int			gotlinkl = false, gotglobal = false;
+
+	/* Only update every 5 minutes to avoid rerunning it every packet */
+	if (last_update+(5*60) > time(NULL)) return;
+
+	last_update = time(NULL);
 
 	dolog(LOG_DEBUG, "Updating Interfaces\n");
 
@@ -1606,9 +1631,32 @@ void update_interfaces(struct intnode *intn)
 #ifdef ECMH_BPF
 				if (ifa->ifa_addr->sa_family == AF_INET)
 				{
+					int num=0;
+					struct in_addr any;
+
+					/* Any is empty */
+					memset(&any, 0, sizeof(any));
+
 					/* Update the Local IPv4 address */
 					dolog(LOG_INFO, "Updating local IPv4 address for %s\n", intn->name);
-					memcpy(&intn->ipv4_local, &addr, sizeof(intn->ipv4_local));
+					for (num=0;num<INTNODE_MAXIPV4;num++)
+					{
+						/* Empty spot ? */
+						if (memcmp(&intn->ipv4_local[num], &any, sizeof(any)) == 0)
+						{
+							memcpy(&intn->ipv4_local[num], &addr, sizeof(intn->ipv4_local));
+							break;
+						}
+
+						/* Already on the interface ? */
+						if (memcmp(&intn->ipv4_local[num], &addr, sizeof(any)) == 0)
+						{
+							break;
+						}
+
+						/* Only allow one IPv4 address on PtP links */
+						if ((ifa->ifa_flags & IFF_POINTOPOINT) == IFF_POINTOPOINT) break;
+					}
 
 					if ((ifa->ifa_flags & IFF_POINTOPOINT) != IFF_POINTOPOINT)
 					{
