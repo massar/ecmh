@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.c,v 1.17 2004/10/10 11:35:52 fuzzel Exp $
- $Date: 2004/10/10 11:35:52 $
+ $Id: ecmh.c,v 1.18 2004/10/10 12:39:54 fuzzel Exp $
+ $Date: 2004/10/10 12:39:54 $
 ***************************************
  
    Docs:
@@ -1501,6 +1501,13 @@ void update_interfaces(struct intnode *intn)
 	{
 		for (ifa=ifap;ifa;ifa=ifa->ifa_next)
 		{
+			if (!ifa->ifa_addr)
+			{
+				if (g_conf->verbose) dolog(LOG_WARNING, "Interface %s didn't have an address!? -> skipping\n", ifa->ifa_name);
+				continue;
+			}
+
+#if 1
 			/*
 			 * Ignore:
 			 * - loopbacks
@@ -1535,7 +1542,7 @@ void update_interfaces(struct intnode *intn)
 #endif
 				continue;
 			}
-#if 1
+			
 			dolog(LOG_DEBUG, "%s %u (%s)%s%s%s%s (%u) -> trying...\n",
 				ifa->ifa_name,
 				ifa->ifa_addr->sa_family,
@@ -1555,24 +1562,17 @@ void update_interfaces(struct intnode *intn)
 #endif
 
 			ifindex = if_nametoindex(ifa->ifa_name);
-			if (ifa->ifa_addr)
+			if (ifa->ifa_addr->sa_family == AF_INET6)
 			{
-				if (ifa->ifa_addr->sa_family == AF_INET6)
-				{
-					memcpy(&addr,
-						&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr, sizeof(addr));
-				}
-				else
-				{
-					memcpy(&addr,
-						&((struct sockaddr_in *)ifa->ifa_addr)->sin_addr, sizeof(addr));
-				}
+				memcpy(&addr,
+					&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr, sizeof(addr));
 			}
 			else
 			{
-				dolog(LOG_WARNING, "Interface %s/%u didn't have an address!? -> skipping\n", ifa->ifa_name, ifindex);
-				continue;
+				memcpy(&addr,
+					&((struct sockaddr_in *)ifa->ifa_addr)->sin_addr, sizeof(addr));
 			}
+
 #endif /* !ECMH_GETIFADDR */
 		/* Skip everything we don't care about */
 		if (
