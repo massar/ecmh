@@ -3,8 +3,8 @@
 #  by Jeroen Massar <jeroen@unfix.org>
 # ***************************************
 # $Author: fuzzel $
-# $Id: Makefile,v 1.18 2005/02/09 17:58:06 fuzzel Exp $
-# $Date: 2005/02/09 17:58:06 $
+# $Id: Makefile,v 1.19 2005/02/09 17:58:52 fuzzel Exp $
+# $Date: 2005/02/09 17:58:52 $
 # **************************************/
 #
 # Toplevel Makefile allowing easy distribution.
@@ -29,7 +29,7 @@ export ECMH_VERSION
 # Enable MLDv2 Support : -DECMH_SUPPORT_MLD2
 # GetIfAddr Support    : -DECMH_GETIFADDR
 # BPF Support (BSD)    : _DECMH_BPF
-ECMH_OPTIONS=-DECMH_SUPPORT_MLD2 -DECMH_GETIFADDR -DDEBUG
+ECMH_OPTIONS=-DECMH_SUPPORT_MLD2 -DECMH_GETIFADDR
 
 # Not Linux? -> Enable BPF Mode
 ifeq ($(shell uname | grep -c "Linux"),0)
