@@ -3,8 +3,8 @@
 #  by Jeroen Massar <jeroen@unfix.org>
 # ***************************************
 # $Author: fuzzel $
-# $Id: Makefile,v 1.6 2004/10/08 17:24:11 fuzzel Exp $
-# $Date: 2004/10/08 17:24:11 $
+# $Id: Makefile,v 1.7 2004/10/10 11:35:52 fuzzel Exp $
+# $Date: 2004/10/10 11:35:52 $
 # **************************************/
 #
 # Source Makefile for ecmh - Jeroen Massar <jeroen@unfix.org>
@@ -15,9 +15,12 @@
 #
 # FreeBSD people should uncomment these if they don't have GNU make and
 # then run 'make' from this directory
-#ECMH_OPTIONS=-DECMH_BPF -DECMH_SUPPORT_MLD2 -DECMH_GETIFADDR
+# On FreeBSD4 install the "libgnugetopt" port to get getopt working
+#ECMH_OPTIONS=-DECMH_BPF -DECMH_SUPPORT_MLD2 -DECMH_GETIFADDR -I/usr/local/include/
 #ECMH_VERSION=2004.10.09
+#ECMH_LDFREEBSD=-L/usr/local/lib/ -lgnugetopt
 
+# Below here nothing should have to be changed
 BINS	= ecmh
 SRCS	= ecmh.c linklist.c common.c interfaces.c groups.c grpint.c subscr.c
 INCS	= ecmh.h linklist.h common.h interfaces.h groups.h grpint.h subscr.h mld.h
@@ -26,7 +29,7 @@ OBJS	= ecmh.o linklist.o common.o interfaces.o groups.o grpint.o subscr.o
 WARNS	= -W -Wall -pedantic -Wno-format -Wno-unused
 EXTRA   = -g -O3
 CFLAGS	= $(WARNS) $(EXTRA) -D_GNU_SOURCE -D'ECMH_VERSION="$(ECMH_VERSION)"' $(ECMH_OPTIONS)
-LDFLAGS	=
+LDFLAGS	= $(ECMH_LDFREEBSD)
 CC      = gcc
 RM      = rm
 
@@ -34,7 +37,7 @@ all:	$(BINS)
 
 ecmh:	$(OBJS) ${INCS} ${DEPS}
 	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS)
-	#strip $@
+	strip $@
 
 clean:
 	$(RM) -f $(OBJS) $(BINS)

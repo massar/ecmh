@@ -1,3 +1,12 @@
+ecmh (2004.10.10-1) stable; urgency=low
+
+  * Releasing as 2004.10.10
+  * FreeBSD 4 support
+  * Less verbosity
+  * Detection of IPv4 update changes
+
+ -- Jeroen Massar <jeroen@unfix.org  Sun, 10 Oct 2004 13:12:42 +0200
+
 ecmh (2004.10.09-1) stable; urgency=low
 
   * Releasing as 2004.10.09.

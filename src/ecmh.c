@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.c,v 1.16 2004/10/08 18:48:35 fuzzel Exp $
- $Date: 2004/10/08 18:48:35 $
+ $Id: ecmh.c,v 1.17 2004/10/10 11:35:52 fuzzel Exp $
+ $Date: 2004/10/10 11:35:52 $
 ***************************************
  
    Docs:
@@ -306,6 +306,7 @@ void sendpacket6(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t
 		 */
 		if (errno == ENXIO)
 		{
+			dolog(LOG_DEBUG, "[%-5s] couldn't send %u bytes, received ENXIO, destroying interface\n", intn->name, len);
 			/* Delete from the list */
 			listnode_delete(g_conf->ints, intn);
 			/* Destroy the interface itself */
@@ -769,10 +770,13 @@ void l4_ipv4_proto41(struct intnode *intn, struct ip *iph, const uint8_t *packet
 	}
 	if (!tun)
 	{
-	    	char buf[1024],buf2[1024];
-	    	inet_ntop(AF_INET, &iph->ip_src, (char *)&buf, sizeof(buf));
-	    	inet_ntop(AF_INET, &iph->ip_dst, (char *)&buf2, sizeof(buf));
-		dolog(LOG_ERR, "Couldn't find proto-41 tunnel %s->%s\n", buf, buf2);
+		if (g_conf->verbose)
+		{
+	   	 	char buf[1024],buf2[1024];
+	    		inet_ntop(AF_INET, &iph->ip_src, (char *)&buf, sizeof(buf));
+	    		inet_ntop(AF_INET, &iph->ip_dst, (char *)&buf2, sizeof(buf));
+			dolog(LOG_ERR, "Couldn't find proto-41 tunnel %s->%s\n", buf, buf2);
+		}
 		return;
 	}
 
@@ -1457,7 +1461,7 @@ void update_interfaces(struct intnode *intn)
 	unsigned int		i = 0;
 
 #endif /* !ECMH_GETIFADDR */
-	int			gotlinkl = false, gotglobal = false;
+	int			gotlinkl = false, gotglobal = false, gotipv4 = false;
 
 	/* Only update every 5 minutes to avoid rerunning it every packet */
 	if (last_update+(5*60) > time(NULL)) return;
@@ -1511,10 +1515,17 @@ void update_interfaces(struct intnode *intn)
 #endif
 				)
 			{
-#if 0
-				dolog(LOG_DEBUG, "%s %u%s%s%s%s (%u) -> ignoring\n",
+#if 1
+				dolog(LOG_DEBUG, "%s %u (%s)%s%s%s%s (%u) -> ignoring\n",
 					ifa->ifa_name,
 					ifa->ifa_addr->sa_family,
+					ifa->ifa_addr->sa_family == AF_INET ? "IPv4" :
+					(ifa->ifa_addr->sa_family == AF_INET6 ? "IPv6" :
+#ifdef ECMH_BPF
+					(ifa->ifa_addr->sa_family == AF_LINK ? "LINK" : "???")),
+#else
+					"???"),
+#endif
 					(ifa->ifa_flags & IFF_UP) == IFF_UP ? " Up": "",
 					(ifa->ifa_flags & IFF_RUNNING) == IFF_RUNNING ? " Running" : "",
 					(ifa->ifa_flags & IFF_LOOPBACK) == IFF_LOOPBACK ? " Loopback" : "",
@@ -1524,10 +1535,17 @@ void update_interfaces(struct intnode *intn)
 #endif
 				continue;
 			}
-#if 0
-			dolog(LOG_DEBUG, "%s %u%s%s%s%s (%u) -> trying...\n",
+#if 1
+			dolog(LOG_DEBUG, "%s %u (%s)%s%s%s%s (%u) -> trying...\n",
 				ifa->ifa_name,
 				ifa->ifa_addr->sa_family,
+				ifa->ifa_addr->sa_family == AF_INET ? "IPv4" :
+				(ifa->ifa_addr->sa_family == AF_INET6 ? "IPv6" :
+#ifdef ECMH_BPF
+				(ifa->ifa_addr->sa_family == AF_LINK ? "LINK" : "???")),
+#else
+				"???"),
+#endif
 				(ifa->ifa_flags & IFF_UP) == IFF_UP ? " Up": "",
 				(ifa->ifa_flags & IFF_RUNNING) == IFF_RUNNING ? " Running" : "",
 				(ifa->ifa_flags & IFF_LOOPBACK) == IFF_LOOPBACK ? " Loopback" : "",
@@ -1593,7 +1611,7 @@ void update_interfaces(struct intnode *intn)
 		}
 		else
 		{
-			newintn = gotlinkl = gotglobal = false;
+			newintn = gotlinkl = gotglobal = gotipv4 = false;
 			intn = int_find(ifindex, false);
 
 			/* Not Found? -> Create the interface */
@@ -1630,18 +1648,28 @@ void update_interfaces(struct intnode *intn)
 				{
 					int num=0;
 					struct in_addr any;
+#ifdef DEBUG
+					char txt[INET6_ADDRSTRLEN];
+					memset(txt,0,sizeof(txt));
+					inet_ntop(AF_INET, &addr, txt, sizeof(txt));
+#endif
 
 					/* Any is empty */
 					memset(&any, 0, sizeof(any));
 
 					/* Update the Local IPv4 address */
-					dolog(LOG_INFO, "Updating local IPv4 address for %s\n", intn->name);
+#ifdef DEBUG
+					dolog(LOG_DEBUG, "Updating local IPv4 address for %s: %s\n", intn->name, txt);
+#else
+					dolog(LOG_DEBUG, "Updating local IPv4 address for %s\n", intn->name);
+#endif
 					for (num=0;num<INTNODE_MAXIPV4;num++)
 					{
 						/* Empty spot ? */
 						if (memcmp(&intn->ipv4_local[num], &any, sizeof(any)) == 0)
 						{
 							memcpy(&intn->ipv4_local[num], &addr, sizeof(intn->ipv4_local));
+							gotipv4 = true;
 							break;
 						}
 
@@ -1655,7 +1683,8 @@ void update_interfaces(struct intnode *intn)
 						if ((ifa->ifa_flags & IFF_POINTOPOINT) == IFF_POINTOPOINT) break;
 					}
 
-					if ((ifa->ifa_flags & IFF_POINTOPOINT) != IFF_POINTOPOINT)
+					if (	gotipv4 &&
+						(ifa->ifa_flags & IFF_POINTOPOINT) != IFF_POINTOPOINT)
 					{
 						/* Update the locals list */
 						local_update(intn);
@@ -1664,8 +1693,17 @@ void update_interfaces(struct intnode *intn)
 				else if (ifa->ifa_addr->sa_family == AF_INET6)
 				{
 #endif
+#ifdef DEBUG
+					char txt[INET6_ADDRSTRLEN];
+					memset(txt,0,sizeof(txt));
+					inet_ntop(AF_INET, &addr, txt, sizeof(txt));
+#endif
 					/* Update the global address */
-					dolog(LOG_INFO, "Updating global IPv6 address for %s\n", intn->name);
+#ifdef DEBUG
+					dolog(LOG_DEBUG, "Updating global IPv6 address for %s: %s\n", intn->name, txt);
+#else
+					dolog(LOG_DEBUG, "Updating global IPv6 address for %s\n", intn->name);
+#endif
 					memcpy(&intn->global, &addr, sizeof(intn->global));
 					gotglobal = true;
 #ifdef ECMH_BPF
@@ -1689,8 +1727,12 @@ void update_interfaces(struct intnode *intn)
 			/* either the linklocal or global addresses are set. */
 			if (newintn)
 			{
-				if (gotlinkl || gotglobal) int_add(intn);
-				else int_destroy(intn);
+				if (gotlinkl || gotglobal || gotipv4) int_add(intn);
+				else
+				{
+					dolog(LOG_DEBUG, "Didn't get a linklocal or global address->destroying\n");
+					int_destroy(intn);
+				}
 			}
 		}
 #ifdef ECMH_GETIFADDR

@@ -3,11 +3,9 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.h,v 1.8 2004/10/07 09:28:21 fuzzel Exp $
- $Date: 2004/10/07 09:28:21 $
+ $Id: ecmh.h,v 1.9 2004/10/10 11:35:52 fuzzel Exp $
+ $Date: 2004/10/10 11:35:52 $
 **************************************/
-
-#define DEBUG 1
 
 #include <sys/types.h>
 #include <sys/socket.h>
