@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: interfaces.c,v 1.3 2004/02/15 19:51:06 fuzzel Exp $
- $Date: 2004/02/15 19:51:06 $
+ $Id: interfaces.c,v 1.4 2004/02/15 21:23:58 fuzzel Exp $
+ $Date: 2004/02/15 21:23:58 $
 **************************************/
 
 #include "ecmh.h"
@@ -33,9 +33,9 @@ struct intnode *int_create(int ifindex)
 
 	if (!intn) return NULL;
 	memset(intn, 0, sizeof(*intn));
-	
+
 	intn->ifindex = ifindex;
-	
+
 	// Default to 0, we discover this after the queries has been sent
 	intn->mld_version = 0;
 

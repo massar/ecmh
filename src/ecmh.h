@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.h,v 1.3 2004/02/15 19:51:06 fuzzel Exp $
- $Date: 2004/02/15 19:51:06 $
+ $Id: ecmh.h,v 1.4 2004/02/15 21:23:58 fuzzel Exp $
+ $Date: 2004/02/15 21:23:58 $
 **************************************/
 
 #define _XOPEN_SOURCE
@@ -79,7 +79,7 @@ struct conf
 	struct list		*groups;			// The groups we are joined to
 
 	bool			daemonize;			// To Daemonize or to not to Daemonize
-	
+
 	int			rawsocket;			// RAW socket for sending and receiving
 
 	FILE			*stat_file;			// The file handle of ourdump file

@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.c,v 1.3 2004/02/15 19:51:06 fuzzel Exp $
- $Date: 2004/02/15 19:51:06 $
+ $Id: ecmh.c,v 1.4 2004/02/15 21:23:58 fuzzel Exp $
+ $Date: 2004/02/15 21:23:58 $
 **************************************/
 //
 // Docs to check: netdevice(7), packet(7)
@@ -18,8 +18,6 @@ struct conf	*g_conf;
 /**************************************
   Functions
 **************************************/
-
-// Actual code for doing the trick(tm)
 
 // Send a packet
 void sendpacket6(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t len)
@@ -62,9 +60,13 @@ void sendpacket6(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t
 		return;
 	}
 
-	// Update the counters	
+	// Update the global statistics
 	g_conf->stat_packets_sent++;
 	g_conf->stat_bytes_sent+=len;
+
+	// Update interface statistics
+	intn->stat_bytes_sent+=len;
+	intn->stat_packets_sent++;
 	return;
 }
 
@@ -73,13 +75,13 @@ uint16_t inchksum(const void *data, uint32_t length)
 	register long		sum = 0;
 	register const uint16_t *wrd = (const uint16_t *)data;
 	register long		slen = (long)length;
-	
+
 	while (slen > 1)
 	{
 		sum += *wrd++;
 		slen-=2;
 	}
-	
+
 	if (slen > 0) sum+=*(const uint8_t *)wrd;
 
 	while (sum >> 16) sum = (sum & 0xffff) + (sum >> 16);
@@ -97,7 +99,7 @@ uint16_t ipv6_checksum(const struct ip6_hdr *ip6, uint8_t protocol, const void *
 		uint8_t		next;
 	} pseudo;
 	register uint32_t	chksum = 0;
-	
+
 	pseudo.length	= htons(length);
 	pseudo.zero1	= 0;
 	pseudo.zero2	= 0;
@@ -118,7 +120,11 @@ uint16_t ipv6_checksum(const struct ip6_hdr *ip6, uint8_t protocol, const void *
 	return (uint16_t)chksum;
 }
 
-/* MLDv1 and MLDv2 are backward compatible when doing Queries */
+/* MLDv1 and MLDv2 are backward compatible when doing Queries
+   aka a router implementing MLDv2 can send the same query
+   and both MLDv1 and MLDv2 hosts will understand it.
+   MLDv2 hosts will return a MLDv2 report, MLDv1 hosts a MLDv1 report
+*/
 void mld_send_query(struct intnode *intn)
 {
 	struct mld_query_packet
@@ -136,7 +142,7 @@ void mld_send_query(struct intnode *intn)
 		struct mld2_query	mldq;
 		
 	} packet;
-	
+
 	memset(&packet, 0, sizeof(packet));
 
 	// Create the IPv6 packet
@@ -144,7 +150,7 @@ void mld_send_query(struct intnode *intn)
 	packet.ip6.ip6_plen		= ntohs(sizeof(packet) - sizeof(packet.ip6));
 	packet.ip6.ip6_nxt		= IPPROTO_HOPOPTS;
 	packet.ip6.ip6_hlim		= 1;
-	
+
 	// The source address must be the link-local address
 	// of the interface we are sending on
 	memcpy(&packet.ip6.ip6_src, &intn->linklocal, sizeof(packet.ip6.ip6_src));
@@ -195,7 +201,7 @@ void mld1_send_report(struct intnode *intn, const struct in6_addr *mca)
 		struct mld1		mld1;
 		
 	} packet;
-	
+
 	memset(&packet, 0, sizeof(packet));
 
 	// Create the IPv6 packet
@@ -203,7 +209,7 @@ void mld1_send_report(struct intnode *intn, const struct in6_addr *mca)
 	packet.ip6.ip6_plen		= ntohs(sizeof(packet) - sizeof(packet.ip6));
 	packet.ip6.ip6_nxt		= IPPROTO_HOPOPTS;
 	packet.ip6.ip6_hlim		= 1;
-	
+
 	// The source address must be the link-local address
 	// of the interface we are sending on
 	memcpy(&packet.ip6.ip6_src, &intn->linklocal, sizeof(packet.ip6.ip6_src));
@@ -214,7 +220,7 @@ void mld1_send_report(struct intnode *intn, const struct in6_addr *mca)
 	// HopByHop Header Extension
 	packet.hbh.ip6h_nxt		= IPPROTO_ICMPV6;
 	packet.hbh.ip6h_len		= 0;
-	
+
 	// Router Alert Option
 	packet.routeralert.type		= 5;
 	packet.routeralert.length	= sizeof(packet.routeralert.value);
@@ -252,7 +258,7 @@ void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 		struct mld1		mld1;
 		
 	} packet;
-	
+
 	memset(&packet, 0, sizeof(packet));
 
 	// Create the IPv6 packet
@@ -260,7 +266,7 @@ void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 	packet.ip6.ip6_plen		= ntohs(sizeof(packet) - sizeof(packet.ip6));
 	packet.ip6.ip6_nxt		= IPPROTO_HOPOPTS;
 	packet.ip6.ip6_hlim		= 1;
-	
+
 	// The source address must be the link-local address
 	// of the interface we are sending on
 	memcpy(&packet.ip6.ip6_src, &intn->linklocal, sizeof(packet.ip6.ip6_src));
@@ -271,7 +277,7 @@ void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 	// HopByHop Header Extension
 	packet.hbh.ip6h_nxt		= IPPROTO_ICMPV6;
 	packet.hbh.ip6h_len		= 0;
-	
+
 	// Router Alert Option
 	packet.routeralert.type		= 5;
 	packet.routeralert.length	= sizeof(packet.routeralert.value);
@@ -358,7 +364,8 @@ void l3_ipv4(struct intnode *intn, const uint8_t *packet, const uint16_t len)
 void mld_warning(char *fmt, struct in6_addr *i_mca, const struct intnode *intn)
 {
 	char mca[60];
-	inet_ntop(AF_INET6, i_mca, mca, sizeof(*mca));
+	memset(mca,0,sizeof(mca));
+	inet_ntop(AF_INET6, i_mca, mca, sizeof(*i_mca));
 	dolog(LOG_WARNING, fmt, mca, intn->name);
 }
 
@@ -607,7 +614,7 @@ void l4_ipv6_multicast(struct intnode *intn, const struct ip6_hdr *iph, const ui
 	inet_ntop(AF_INET6, &iph->ip6_dst, dst, sizeof(dst));
 
 	//D(dolog(LOG_DEBUG, "%5s L3:IPv6: IPv%0x %40s %40s %4u %d\n", intn->name, (int)((iph->ip6_vfc>>4)&0x0f), src, dst, ntohs(iph->ip6_plen), iph->ip6_nxt);)
-	
+
 	// Find the group belonging to this multicast destination
 	groupn = group_find(&iph->ip6_dst);
 	
@@ -652,8 +659,8 @@ void l3_ipv6(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t len
 	struct grpintnode	*grpintn;
 	struct subscrnode	*subscrn;
 	struct listnode		*in, *in2;
-	
-	
+
+
 	// Prefilter - ignore anything but:
 	// - source must be link-local
 	// OR
@@ -743,14 +750,14 @@ void update_interfaces(struct intnode *intn)
 
 	// Get link local addresses from /proc/net/if_inet6
 	file = fopen("/proc/net/if_inet6", "r");
-	
+
 	// We can live without it though
 	if (!file)
 	{
 		dolog(LOG_WARNING, "Couldn't open /proc/net/if_inet6 for figuring out local interfaces\n");
 		return;
 	}
-	
+
 	// Format "fe80000000000000029027fffe24bbab 02 0a 20 80     eth0"
 	while (fgets(buf, sizeof(buf), file))
 	{
@@ -899,7 +906,7 @@ void sigusr1(int i)
 			}
 		}
 	}
-	
+
 	fprintf(g_conf->stat_file, "*** Subscription Information Dump (end - %d groups, %d subscriptions)\n", g_conf->groups->count, subscriptions);
 	fprintf(g_conf->stat_file, "\n");
 
@@ -912,9 +919,19 @@ void sigusr1(int i)
 
 		fprintf(g_conf->stat_file, "\n");
 		fprintf(g_conf->stat_file, "Interface: %s\n", intn->name);
-		fprintf(g_conf->stat_file, "  Index  : %d\n", intn->ifindex);
-		fprintf(g_conf->stat_file, "  MTU    : %d\n", intn->mtu);
-		fprintf(g_conf->stat_file, "  LL     : %s\n", addr);
+		fprintf(g_conf->stat_file, "  Index number       : %d\n", intn->ifindex);
+		fprintf(g_conf->stat_file, "  MTU                : %d\n", intn->mtu);
+		fprintf(g_conf->stat_file, "  Link-local address : %s\n", addr);
+
+		if (intn->mld_version == 0)
+		fprintf(g_conf->stat_file, "  MLD version        : No query seen\n");
+		else
+		fprintf(g_conf->stat_file, "  MLD version        : v%d\n", intn->mld_version);
+
+		fprintf(g_conf->stat_file, "  Packets received   : %lld\n", intn->stat_packets_received);
+		fprintf(g_conf->stat_file, "  Packets forwarded  : %lld\n", intn->stat_packets_sent);
+		fprintf(g_conf->stat_file, "  Bytes received     : %lld\n", intn->stat_bytes_received);
+		fprintf(g_conf->stat_file, "  Bytes forwarded    : %lld\n", intn->stat_bytes_sent);
 	}
 
 	fprintf(g_conf->stat_file, "\n");
@@ -949,7 +966,7 @@ void send_mld_querys()
 {
 	struct intnode		*intn;
 	struct listnode		*ln;
-	
+
 	D(dolog(LOG_DEBUG, "*** Sending MLD Queries\n");)
 
 	// Send MLD query's
@@ -970,7 +987,7 @@ void timeout()
 	struct subscrnode	*subscrn;
 	struct listnode		*ssn;
 	time_t			time_tee;
-	
+
 	D(dolog(LOG_DEBUG, "*** Timeout\n");)
 
 	// Update the complete interfaces list
@@ -1008,7 +1025,7 @@ void timeout()
 				grpint_destroy(grpintn);
 			}
 		}
-	
+
 		if (groupn->interfaces->count == 0)
 		{
 			// Delete from the list
@@ -1039,7 +1056,7 @@ static struct option const long_options[] = {
 int main(int argc, char *argv[], char *envp[])
 {
 	int			i=0, len;
-	
+
 	char			buffer[8192];
 	struct sockaddr_ll	sa;
 	socklen_t		salen;
@@ -1047,7 +1064,7 @@ int main(int argc, char *argv[], char *envp[])
 	struct ip		*hdr_ip = (struct ip *)&buffer;
 
 	struct intnode		*intn = NULL;
-	
+
 	int			drop_uid = 0, drop_gid = 0, option_index = 0;
 	struct passwd		*passwd;
 
@@ -1125,7 +1142,7 @@ int main(int argc, char *argv[], char *envp[])
 
 	// Dump operations
 	signal(SIGUSR1,	&sigusr1);
-	
+
 	signal(SIGUSR2, SIG_IGN);
 
 	// Show our version in the startup logs ;)
@@ -1133,7 +1150,7 @@ int main(int argc, char *argv[], char *envp[])
 
 	// Save our PID
 	savepid();
-	
+
 	// Open our dump file
 	g_conf->stat_file = fopen(ECMH_DUMPFILE, "w");
 	if (!g_conf->stat_file)
@@ -1150,7 +1167,7 @@ int main(int argc, char *argv[], char *envp[])
 		dolog(LOG_ERR, "Couldn't allocate a RAW socket\n");
 		return -1;
 	}
-	
+
 	// Fix our priority, we need to be near realtime
 	if (setpriority(PRIO_PROCESS, getpid(), -15) == -1)
 	{
@@ -1161,10 +1178,10 @@ int main(int argc, char *argv[], char *envp[])
 	// We don't need them anymore anyways
 	if (drop_uid != 0) setuid(drop_uid);
 	if (drop_gid != 0) setgid(drop_gid);
-	
+
 	// Update the complete interfaces list
 	update_interfaces(NULL);
-	
+
 	send_mld_querys();
 
 	len = 0;
@@ -1229,7 +1246,7 @@ int main(int argc, char *argv[], char *envp[])
 	// Cleanup the nodes
 	list_delete(g_conf->ints);
 	list_delete(g_conf->groups);
-	
+
 	// Close files and sockets
 	fclose(g_conf->stat_file);
 	close(g_conf->rawsocket);
