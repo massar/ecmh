@@ -1,3 +1,10 @@
+ecmh (2004.10.08-1) stable; urgency=low
+
+  * Releasing as 2004.10.08.
+  * Interface destroy fix
+
+ -- Jeroen Massar <jeroen@unfix.org>  Fri, 8 Oct 2004 16:15:42 +0200
+
 ecmh (2004.10.07-1) stable; urgency=low
 
   * Releasing as 2004.10.07.
@@ -5,7 +12,7 @@ ecmh (2004.10.07-1) stable; urgency=low
   * Special tunneling mode.
   * MLDv2 implemented and enabled.
 
- -- Jeroen Massar <jeroen@unfix.org>  Thu, 7 Feb 2004 11:23:42 +0200
+ -- Jeroen Massar <jeroen@unfix.org>  Thu, 7 Oct 2004 11:23:42 +0200
 
 ecmh (2004.02.18-1) stable; urgency=low
 
