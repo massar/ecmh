@@ -43,7 +43,9 @@
 
 #include <netinet/in.h>
 
+#ifndef ECMH_VERSION
 #include <netinet6/in6_var.h>
+#endif
 #include <netinet/icmp6.h>
 
 #include <string.h>
@@ -54,29 +56,36 @@
 #include <err.h>
 #include <ifaddrs.h>
 
+#ifndef ECMH_VERSION
 #include "trace.h"
+#else
+#include "../../src/trace.h"
+#include "../../src/mld.h"
+#include <sys/time.h>
+#include <time.h>
+#endif
 
 static char *gateway, *intface, *source, *group, *receiver, *destination;
 static char *linkstr;
 static int mldsoc, hops = 64, maxhops = 127, waittime = 3, querylen, opt_n;
-static struct sockaddr *gw_sock, *src_sock, *grp_sock, *dst_sock, *rcv_sock; 
+static struct sockaddr_storage *gw_sock, *src_sock, *grp_sock, *dst_sock, *rcv_sock; 
 static char *querypacket;
 static char frombuf[1024];	/* XXX: enough size? */
 
 int main __P((int, char *[]));
 static char *proto_type __P((u_int));
-static char *pr_addr __P((struct sockaddr *, int));
+static char *pr_addr __P((struct sockaddr *, int, int));
 static void setqid __P((int, char *));
 static void mtrace_loop __P((void));
-static char *str_rflags __P((int));
-static void show_ip6_result __P((struct sockaddr_in6 *, int));
+static char *str_rflags __P((unsigned int));
+static void show_ip6_result __P((struct sockaddr_in6 *, unsigned int));
 static void show_result __P((struct sockaddr *, int));
 static void set_sockaddr __P((char *, struct addrinfo *, struct sockaddr *,
 	size_t));
 static int is_multicast __P((struct sockaddr *));
 static char *all_routers_str __P((int));
 static int ip6_validaddr __P((char *, struct sockaddr_in6 *));
-static int get_my_sockaddr __P((int, struct sockaddr *, size_t));
+static int get_my_sockaddr __P((int, struct sockaddr *, size_t, size_t));
 static void set_hlim __P((int, struct sockaddr *, int));
 static void set_join __P((int, char *, struct sockaddr *));
 static void set_filter __P((int, int));
@@ -189,9 +198,10 @@ proto_type(type)
 }
 
 static char *
-pr_addr(addr, numeric)
+pr_addr(addr, numeric, salen)
 	struct sockaddr *addr;
 	int numeric;
+	int salen;
 {
 	static char buf[MAXHOSTNAMELEN];
 	int flag = 0;
@@ -199,7 +209,7 @@ pr_addr(addr, numeric)
 	if (numeric)
 		flag |= NI_NUMERICHOST;
 
-	getnameinfo(addr, addr->sa_len, buf, sizeof(buf), NULL, 0, flag);
+	getnameinfo(addr, salen, buf, sizeof(buf), NULL, 0, flag);
 
 	return (buf);
 }
@@ -213,7 +223,7 @@ setqid(family, query)
 
 	switch(family) {
 	case AF_INET6:
-		q6 = (struct tr6_query *)((struct mld_hdr *)query + 1);
+		q6 = (struct tr6_query *)((struct mld1 *)query + 1);
 		q6->tr_qid = (u_int32_t)random();
 	}
 }
@@ -223,7 +233,7 @@ mtrace_loop()
 {
 	int nsoc, fromlen, rcvcc;
 	struct timeval tv, tv_wait;
-	struct fd_set *fdsp;
+	fd_set *fdsp;
 	size_t nfdsp;
 	struct sockaddr_storage from_ss;
 	struct sockaddr *from_sock = (struct sockaddr *)&from_ss;
@@ -233,10 +243,13 @@ mtrace_loop()
 	srandom(tv.tv_usec);
 
 	while(1) {		/* XXX */
-		setqid(gw_sock->sa_family, querypacket);
+		setqid(gw_sock->ss_family, querypacket);
 
-		if (sendto(mldsoc, (void *)querypacket, querylen, 0, gw_sock,
-			   gw_sock->sa_len) < 0)
+		// We set the length to sizeof(struct sockaddr_in6) as
+		// Linux doesn't have a sa_len...
+		if (sendto(mldsoc, (void *)querypacket, querylen, 0,
+			   (struct sockaddr *)gw_sock,
+			   sizeof(struct sockaddr_in6)) < 0)
 			err(1, "sendto");
 
 		tv_wait.tv_sec = waittime;
@@ -275,7 +288,7 @@ char *fwd_errcode[] = {"", "NOSPC", "OLD", "ADMIN"};
 
 static char *
 str_rflags(flag)
-	int flag;
+	unsigned int flag;
 {
 	if (0x80 & flag) {	/* fatal error */
 		flag &= ~0x80;
@@ -298,10 +311,10 @@ str_rflags(flag)
 static void
 show_ip6_result(from6, datalen)
 	struct sockaddr_in6 *from6;
-	int datalen;
+	unsigned int datalen;
 {
-	struct mld_hdr *mld6_tr_resp = (struct mld_hdr *)frombuf;
-	struct mld_hdr *mld6_tr_query = (struct mld_hdr *)querypacket;
+	struct mld1 *mld6_tr_resp = (struct mld1 *)frombuf;
+	struct mld1 *mld6_tr_query = (struct mld1 *)querypacket;
 	struct tr6_query *tr6_rquery = (struct tr6_query *)(mld6_tr_resp + 1);
 	struct tr6_query *tr6_query = (struct tr6_query *)(mld6_tr_query + 1);
 	struct tr6_resp *tr6_resp = (struct tr6_resp *)(tr6_rquery + 1),
@@ -337,10 +350,10 @@ show_ip6_result(from6, datalen)
 			/* reinitialize the sockaddr. paranoid? */
 			memset((void *)&sa_resp, 0, sizeof(sa_resp));
 			sa_resp.sin6_family = AF_INET6;
-			sa_resp.sin6_len = sizeof(sa_resp);
+			//sa_resp.sin6_len = sizeof(sa_resp);
 			memset((void *)&sa_upstream, 0, sizeof(sa_upstream));
 			sa_upstream.sin6_family = AF_INET6;
-			sa_upstream.sin6_len = sizeof(sa_upstream);
+			//sa_upstream.sin6_len = sizeof(sa_upstream);
 
 			sa_resp.sin6_addr = rp->tr_lcladdr;
 			sa_upstream.sin6_addr = rp->tr_rmtaddr;
@@ -348,9 +361,9 @@ show_ip6_result(from6, datalen)
 			/* print information for the router */
 			printf("%3d  ", -i);/* index */
 			/* router address and incoming/outgoing interface */
-			printf("%s", pr_addr((struct sockaddr *)&sa_resp, opt_n));
+			printf("%s", pr_addr((struct sockaddr *)&sa_resp, opt_n, sizeof(sa_resp)));
 			printf("(%s/%d->%d) ",
-			       pr_addr((struct sockaddr *)&sa_upstream, 1),
+			       pr_addr((struct sockaddr *)&sa_upstream, 1, sizeof(sa_resp)),
 			       ntohl(rp->tr_inifid), ntohl(rp->tr_outifid));
 			/* multicast routing protocol type */
 			printf("%s ", proto_type(rp->tr_rproto));
@@ -399,7 +412,7 @@ set_sockaddr(addrname, hints, sap, l)
 		errx(1, "getaddrinfo failed");
 	if (res->ai_addrlen > l)
 		errx(1, "sockaddr too big");
-	memcpy((void *)sap, (void *)res->ai_addr, res->ai_addr->sa_len);
+	memcpy((void *)sap, (void *)res->ai_addr, l);
 
 	freeaddrinfo(res);
 }
@@ -443,9 +456,9 @@ ip6_validaddr(ifname, addr)
 	char *ifname;
 	struct sockaddr_in6 *addr;
 {
-	int s;
-	struct in6_ifreq ifr6;
-	u_int32_t flags6;
+//	int s;
+//	struct in6_ifreq ifr6;
+//	u_int32_t flags6;
 
 	/* we need a global address only...XXX: should be flexible? */
 	if (IN6_IS_ADDR_LOOPBACK(&addr->sin6_addr) ||
@@ -454,7 +467,7 @@ ip6_validaddr(ifname, addr)
 		return(0);
 
 	/* get IPv6 dependent flags and examine them */
-	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
+/*	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
 		err(1, "ip6_validaddr: socket");
 
 	strncpy(ifr6.ifr_name, ifname, sizeof(ifr6.ifr_name));
@@ -466,15 +479,16 @@ ip6_validaddr(ifname, addr)
 	if (flags6 & (IN6_IFF_ANYCAST | IN6_IFF_TENTATIVE |
 		      IN6_IFF_DUPLICATED | IN6_IFF_DETACHED))
 		return(0);
-
+*/
 	return(1);
 }
 
 static int
-get_my_sockaddr(family, addrp, l)
+get_my_sockaddr(family, addrp, l, sa_len)
 	int family;
 	struct sockaddr *addrp;
 	size_t l;
+	size_t sa_len;
 {
 	struct ifaddrs *ifap, *ifa;
 
@@ -486,8 +500,8 @@ get_my_sockaddr(family, addrp, l)
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
 		if (ifa->ifa_addr->sa_family != family)
 			continue;
-		if (ifa->ifa_addr->sa_len > l)
-			continue;
+//		if (ifa->ifa_addr->sa_len > l)
+//			continue;
 		switch(family) {
 		case AF_INET6:
 			if (ip6_validaddr(ifa->ifa_name,
@@ -500,7 +514,7 @@ get_my_sockaddr(family, addrp, l)
 	return (-1);		/* not found */
 
   found:
-	memcpy((void *)addrp, (void *)ifa->ifa_addr, ifa->ifa_addr->sa_len);
+	memcpy((void *)addrp, (void *)ifa->ifa_addr, sa_len);
 	freeifaddrs(ifap);
 	return (0);
 }
@@ -580,45 +594,45 @@ open_socket()
 	hints.ai_protocol = IPPROTO_ICMPV6;
 
 	/* multicast group(must be specified) */
-	grp_sock = (struct sockaddr *)&grp_ss;
-	set_sockaddr(group, &hints, grp_sock, sizeof(grp_ss));
-	if (!is_multicast(grp_sock))
+	grp_sock = (struct sockaddr_storage *)&grp_ss;
+	set_sockaddr(group, &hints, (struct sockaddr *)grp_sock, sizeof(grp_ss));
+	if (!is_multicast((struct sockaddr *)grp_sock))
 		errx(1, "group(%s) is not a multicast address", group);
 
 	/* multicast source(must be specified) */
-	src_sock = (struct sockaddr *)&src_ss;
-	set_sockaddr(source, &hints, src_sock, sizeof(src_ss));
-	if (is_multicast(src_sock))
+	src_sock = (struct sockaddr_storage *)&src_ss;
+	set_sockaddr(source, &hints, (struct sockaddr *)src_sock, sizeof(src_ss));
+	if (is_multicast((struct sockaddr *)src_sock))
 		errx(1, "source(%s) is not a unicast address", source);
 
 	/* last hop gateway for the destination(if specified) */
-	gw_sock = (struct sockaddr *)&gw_ss;
+	gw_sock = (struct sockaddr_storage *)&gw_ss;
 	if (gateway)		/* can be either multicast or unicast */
-		set_sockaddr(gateway, &hints, gw_sock, sizeof(gw_ss));
+		set_sockaddr(gateway, &hints, (struct sockaddr *)gw_sock, sizeof(gw_ss));
 	else {
-		char *r = all_routers_str(grp_sock->sa_family);
+		char *r = all_routers_str(grp_sock->ss_family);
 
-		set_sockaddr(r, &hints, gw_sock, sizeof(gw_ss));
+		set_sockaddr(r, &hints, (struct sockaddr *)gw_sock, sizeof(gw_ss));
 	}
 
 	/* destination address for the trace */
-	dst_sock = (struct sockaddr *)&dst_ss;
+	dst_sock = (struct sockaddr_storage *)&dst_ss;
 	if (destination) {
-		set_sockaddr(destination, &hints, dst_sock, sizeof(dst_ss));
-		if (is_multicast(dst_sock))
+		set_sockaddr(destination, &hints, (struct sockaddr *)dst_sock, sizeof(dst_ss));
+		if (is_multicast((struct sockaddr *)dst_sock))
 			errx(1, "destination(%s) is not a unicast address",
 			     destination);
 	}
 	else {
 		/* XXX: consider interface? */
-		get_my_sockaddr(grp_sock->sa_family, dst_sock, sizeof(dst_ss));
+		get_my_sockaddr(grp_sock->ss_family, (struct sockaddr *)dst_sock, sizeof(dst_ss),sizeof(dst_sock));
 	}
 
 	/* response receiver(if specified) */
-	rcv_sock = (struct sockaddr *)&rcv_ss;
+	rcv_sock = (struct sockaddr_storage *)&rcv_ss;
 	if (receiver) {		/* can be either multicast or unicast */
-		set_sockaddr(receiver, &hints, rcv_sock, sizeof(rcv_ss));
-		if (is_multicast(rcv_sock) &&
+		set_sockaddr(receiver, &hints, (struct sockaddr *)rcv_sock, sizeof(rcv_ss));
+		if (is_multicast((struct sockaddr *)rcv_sock) &&
 		    intface == NULL) {
 #ifdef notyet
 			warnx("receive I/F is not specified for multicast"
@@ -632,7 +646,7 @@ open_socket()
 	}
 	else {
 		/* XXX: consider interface? */
-		get_my_sockaddr(grp_sock->sa_family, rcv_sock, sizeof(rcv_ss));
+		get_my_sockaddr(grp_sock->ss_family, (struct sockaddr *)rcv_sock, sizeof(rcv_ss),sizeof(rcv_sock));
 	}
 
 	if ((mldsoc = socket(hints.ai_family, hints.ai_socktype,
@@ -641,16 +655,16 @@ open_socket()
 
 	/* set necessary socket options */
 	if (hops)
-		set_hlim(mldsoc, gw_sock, hops);
-	if (receiver && is_multicast(rcv_sock))
-		set_join(mldsoc, intface, rcv_sock);
-	set_filter(mldsoc, grp_sock->sa_family);
+		set_hlim(mldsoc, (struct sockaddr *)gw_sock, hops);
+	if (receiver && is_multicast((struct sockaddr *)rcv_sock))
+		set_join(mldsoc, intface, (struct sockaddr *)rcv_sock);
+	set_filter(mldsoc, grp_sock->ss_family);
 }
 
 static void
 make_ip6_packet()
 {
-	struct mld_hdr *mld6_tr_query;
+	struct mld1 *mld6_tr_query;
 	struct tr6_query *tr6_query;
 
 	querylen = sizeof(*mld6_tr_query) + sizeof(*tr6_query);
@@ -659,7 +673,7 @@ make_ip6_packet()
 	memset(querypacket, 0, querylen);
 
 	/* fill in MLD header */
-	mld6_tr_query = (struct mld_hdr *)querypacket;
+	mld6_tr_query = (struct mld1 *)querypacket;
 	mld6_tr_query->mld_type = MLD_MTRACE;
 	mld6_tr_query->mld_code = maxhops & 0xff;
 	mld6_tr_query->mld_addr = ((struct sockaddr_in6 *)grp_sock)->sin6_addr;
@@ -675,12 +689,12 @@ make_ip6_packet()
 static void
 make_packet()
 {
-	switch(grp_sock->sa_family) {
+	switch(grp_sock->ss_family) {
 	case AF_INET6:
 		make_ip6_packet();
 		break;
 	default:
-		errx(1, "make_packet: unsupported AF(%d)", grp_sock->sa_family);
+		errx(1, "make_packet: unsupported AF(%d)", grp_sock->ss_family);
 	}
 }
 
