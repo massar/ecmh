@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.c,v 1.8 2004/02/17 02:11:08 fuzzel Exp $
- $Date: 2004/02/17 02:11:08 $
+ $Id: ecmh.c,v 1.9 2004/02/17 19:05:13 fuzzel Exp $
+ $Date: 2004/02/17 19:05:13 $
 **************************************/
 //
 // Docs to check:
@@ -27,6 +27,7 @@
 
 // Configuration Variables
 struct conf	*g_conf;
+volatile int	g_needs_timeout = false;
 
 /**************************************
   Functions
@@ -137,12 +138,13 @@ uint16_t ipv6_checksum(const struct ip6_hdr *ip6, uint8_t protocol, const void *
  * This is used for the ICMPv6 reply code, to allow sending Hoplimit's :)
  * Thus allowing neat tricks like traceroute6's to work.
  */
-void icmp6_send(struct intnode *intn, const struct in6_addr *src, int type, int code)
+void icmp6_send(struct intnode *intn, const struct in6_addr *src, int type, int code, void *data, unsigned int dlen)
 {
 	struct icmp6_hoplimit_packet
 	{
 		struct ip6_hdr		ip6;
 		struct icmp6_hdr	icmp6;
+		char			data[1500];
 		
 	} packet;
 
@@ -150,14 +152,14 @@ void icmp6_send(struct intnode *intn, const struct in6_addr *src, int type, int 
 
 	// Create the IPv6 packet
 	packet.ip6.ip6_vfc		= 0x60;
-	packet.ip6.ip6_plen		= ntohs(sizeof(packet) - sizeof(packet.ip6));
-	packet.ip6.ip6_nxt		= IPPROTO_HOPOPTS;
-	packet.ip6.ip6_hlim		= 255;
+	packet.ip6.ip6_plen		= ntohs(sizeof(packet) - (sizeof(packet.data) - dlen) - sizeof(packet.icmp6.icmp6_data32) - sizeof(packet.ip6));
+	packet.ip6.ip6_nxt		= IPPROTO_ICMPV6;
+	// Hoplimit of 64 seems to be a semi default
+	packet.ip6.ip6_hlim		= 64;
 
-	// The source address must be a global IPv6 address
-	// and should be associated to the interface we
-	// are sending on
-	memcpy(&packet.ip6.ip6_src, &intn->linklocal, sizeof(packet.ip6.ip6_src));
+	// The source address must be a global unicast IPv6 address
+	// and should be associated to the interface we are sending on
+	memcpy(&packet.ip6.ip6_src, &intn->global, sizeof(packet.ip6.ip6_src));
 
 	// Target == Sender
 	memcpy(&packet.ip6.ip6_dst, src, sizeof(*src));
@@ -165,11 +167,14 @@ void icmp6_send(struct intnode *intn, const struct in6_addr *src, int type, int 
 	// ICMPv6 Error Report
 	packet.icmp6.icmp6_type		= type;
 	packet.icmp6.icmp6_code		= code;
+	
+	// Add the data, we start at the data in the icmp6 packet
+	memcpy(&packet.icmp6.icmp6_data32, data, (sizeof(packet.data) > dlen ? dlen : sizeof(packet.data)));
 
 	// Calculate and fill in the checksum
-	packet.icmp6.icmp6_cksum	= ipv6_checksum(&packet.ip6, IPPROTO_ICMPV6, (uint8_t *)&packet.icmp6, sizeof(packet.icmp6));
+	packet.icmp6.icmp6_cksum	= ipv6_checksum(&packet.ip6, IPPROTO_ICMPV6, (uint8_t *)&packet.icmp6, sizeof(packet.icmp6) + dlen - sizeof(packet.icmp6.icmp6_data32));
 
-	sendpacket6(intn, (const struct ip6_hdr *)&packet, sizeof(packet));
+	sendpacket6(intn, (const struct ip6_hdr *)&packet, sizeof(packet) - (sizeof(packet.data) - dlen) - sizeof(packet.icmp6.icmp6_data32));
 
 	// Increase ICMP sent statistics
 	g_conf->stat_icmp_sent++;
@@ -734,7 +739,7 @@ void l4_ipv6_icmpv6_mld_query(struct intnode *intn, const struct ip6_hdr *iph, c
 // intn		= The interface we received this packet on
 // packet	= The packet, starting with IPv6 header
 // len		= Length of the complete packet
-void l4_ipv6_multicast(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t len)
+void l4_ipv6_multicast(struct intnode *intn, struct ip6_hdr *iph, const uint16_t len)
 {
 	struct groupnode	*groupn;
 	struct grpintnode	*grpintn;
@@ -857,12 +862,15 @@ void l4_ipv6_icmpv6(struct intnode *intn, struct ip6_hdr *iph, const uint16_t le
 		// We redistribute IPv6 ICMPv6 Echo Requests to the subscribers
 		// This allows hosts to ping a IPv6 Multicast address and see who is listening ;)
 
-		// Decrease the hoplimit
-		iph->ip6_hlim--;
+		// Decrease the hoplimit, but only if not 0 yet
+		if (iph->ip6_hlim > 0) iph->ip6_hlim--;
+		D(else dolog(LOG_DEBUG, "Hoplimit for ICMPv6 packet was already %d\n", iph->ip6_hlim);)
 		if (iph->ip6_hlim == 0)
 		{
+			g_conf->stat_hlim_exceeded++;
 			// Send a time_exceed_transit error
-			icmp6_send(intn, &iph->ip6_src, ICMP6_TIME_EXCEEDED, ICMP6_TIME_EXCEED_TRANSIT);
+			icmp6_send(intn, &iph->ip6_src, ICMP6_ECHO_REPLY, ICMP6_TIME_EXCEED_TRANSIT, &icmpv6->icmp6_data32, plen-sizeof(*icmpv6)+sizeof(icmpv6->icmp6_data32));
+			return;
 		}
 		// Send this packet along it's way
 		else l4_ipv6_multicast(intn, iph, len);
@@ -961,6 +969,15 @@ void l3_ipv6(struct intnode *intn, struct ip6_hdr *iph, const uint16_t len)
 	// Handle multicast packets
 	if (IN6_IS_ADDR_MULTICAST(&iph->ip6_dst))
 	{
+		// Decrease the hoplimit, but only if not 0 yet
+		if (iph->ip6_hlim > 0) iph->ip6_hlim--;
+		D(else dolog(LOG_DEBUG, "Hoplimit for UDP packet was already %d\n", iph->ip6_hlim);)
+		if (iph->ip6_hlim == 0)
+		{
+			g_conf->stat_hlim_exceeded++;
+			return;
+		}
+
 		l4_ipv6_multicast(intn, iph, len);
 		return;
 	}
@@ -994,8 +1011,9 @@ void update_interfaces(struct intnode *intn)
 {
 	FILE		*file;
 	char		buf[100], devname[IFNAMSIZ];
-	struct in6_addr	linklocal;
+	struct in6_addr	addr;
 	int		ifindex = 0, prefixlen, scope, flags;
+	int		gotlinkl = false, gotglobal = false;
 
 	D(dolog(LOG_DEBUG, "*** Updating Interfaces\n");)
 
@@ -1012,49 +1030,91 @@ void update_interfaces(struct intnode *intn)
 	// Format "fe80000000000000029027fffe24bbab 02 0a 20 80     eth0"
 	while (fgets(buf, sizeof(buf), file))
 	{
-		// Skip all non-link local addresses
-		if (	buf[0] != 'f' ||
-			buf[1] != 'e' ||
-			buf[2] != '8' ||
-			buf[3] != '0') continue;
-		
-		sscanf(	buf,
+		if (21 != sscanf( buf,
 			"%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx %x %x %x %x %8s",
-			&linklocal.s6_addr[ 0], &linklocal.s6_addr[ 1], &linklocal.s6_addr[ 2], &linklocal.s6_addr[ 3],
-			&linklocal.s6_addr[ 4], &linklocal.s6_addr[ 5], &linklocal.s6_addr[ 6], &linklocal.s6_addr[ 7],
-			&linklocal.s6_addr[ 8], &linklocal.s6_addr[ 9], &linklocal.s6_addr[10], &linklocal.s6_addr[11],
-			&linklocal.s6_addr[12], &linklocal.s6_addr[13], &linklocal.s6_addr[14], &linklocal.s6_addr[15],
-			&ifindex, &prefixlen, &scope, &flags, devname);
+			&addr.s6_addr[ 0], &addr.s6_addr[ 1], &addr.s6_addr[ 2], &addr.s6_addr[ 3],
+			&addr.s6_addr[ 4], &addr.s6_addr[ 5], &addr.s6_addr[ 6], &addr.s6_addr[ 7],
+			&addr.s6_addr[ 8], &addr.s6_addr[ 9], &addr.s6_addr[10], &addr.s6_addr[11],
+			&addr.s6_addr[12], &addr.s6_addr[13], &addr.s6_addr[14], &addr.s6_addr[15],
+			&ifindex, &prefixlen, &scope, &flags, devname))
+		{
+			dolog(LOG_WARNING, "/proc/net/if_inet6 has a broken line, ignoring");
+			continue;
+		}
+
+		// Skip everything we don't care about
+		if (	!IN6_IS_ADDR_LINKLOCAL(&addr) &&
+			(
+				IN6_IS_ADDR_UNSPECIFIED(&addr) ||
+				IN6_IS_ADDR_LOOPBACK(&addr) ||
+				IN6_IS_ADDR_MULTICAST(&addr))
+			)
+		{
+			D(
+				char txt[INET6_ADDRSTRLEN];
+				memset(txt,0,sizeof(txt));
+				inet_ntop(AF_INET6, &addr, txt, sizeof(txt));
+				dolog(LOG_DEBUG, "Ignoring other address %s on interface %s\n", txt, devname);
+			)
+			continue;
+		}
 
 		if (intn)
 		{
 			// Was this the one to update?
 			if (intn->ifindex == ifindex)
 			{
-				// Update the linklocal address
-				memcpy(&intn->linklocal, &linklocal, sizeof(intn->linklocal));
+				if (IN6_IS_ADDR_LINKLOCAL(&addr))
+				{
+					// Update the linklocal address
+					memcpy(&intn->linklocal, &addr, sizeof(intn->linklocal));
+					gotlinkl = true;
+				}
+				else
+				{
+					// Update the global address
+					memcpy(&intn->global, &addr, sizeof(intn->global));
+					gotglobal = true;
+				}
 				// We are done updating
-				break;
+				if (gotlinkl && gotglobal) break;
 			}
 		}
 		// Update everything
 		else
 		{
+			int newintn = false;
+			gotlinkl = gotglobal = false;
+
 			intn = int_find(ifindex, false);
 			if (!intn)
 			{
 				intn = int_create(ifindex);
-
-				// Fill in the linklocal
-				memcpy(&intn->linklocal, &linklocal, sizeof(intn->linklocal));
-
-				// Add it to the list
-				if (intn) int_add(intn);
+				newintn = true;
 			}
-			else
+
+			if (intn)
 			{
-				// Just update the linklocal
-				memcpy(&intn->linklocal, &linklocal, sizeof(intn->linklocal));
+				if (IN6_IS_ADDR_LINKLOCAL(&addr))
+				{
+					// Update the linklocal address
+					memcpy(&intn->linklocal, &addr, sizeof(intn->linklocal));
+					gotlinkl = true;
+				}
+				else
+				{
+					// Update the global address
+					memcpy(&intn->global, &addr, sizeof(intn->global));
+					gotglobal = true;
+				}
+			}
+
+			// Add it to the list if it a new one and
+			// either the linklocal or global was set.
+			if (newintn)
+			{
+				if (gotlinkl || gotglobal) int_add(intn);
+				else int_destroy(intn);
 			}
 
 			// We where not searching for a specific interface
@@ -1075,6 +1135,9 @@ void init()
 		exit(-1);
 	}
 
+	// Clear it, never bad, always good 
+	memset(g_conf, 0, sizeof(*g_conf));
+
 	// Initialize our configuration
 	g_conf->maxgroups	= 42;				// FIXME: Not verified yet...
 	g_conf->daemonize	= true;
@@ -1093,6 +1156,9 @@ void init()
 	g_conf->stat_packets_sent	= 0;
 	g_conf->stat_bytes_received	= 0;
 	g_conf->stat_bytes_sent		= 0;
+	g_conf->stat_icmp_received	= 0;
+	g_conf->stat_icmp_sent		= 0;
+	g_conf->stat_hlim_exceeded	= 0;
 }
 
 void sighup(int i)
@@ -1166,25 +1232,28 @@ void sigusr1(int i)
 
 	LIST_LOOP(g_conf->ints, intn, ln)
 	{
-		inet_ntop(AF_INET6, &intn->linklocal, addr, sizeof(addr));
-
 		fprintf(g_conf->stat_file, "\n");
 		fprintf(g_conf->stat_file, "Interface: %s\n", intn->name);
-		fprintf(g_conf->stat_file, "  Index number       : %d\n", intn->ifindex);
-		fprintf(g_conf->stat_file, "  MTU                : %d\n", intn->mtu);
-		fprintf(g_conf->stat_file, "  Link-local address : %s\n", addr);
+		fprintf(g_conf->stat_file, "  Index number           : %d\n", intn->ifindex);
+		fprintf(g_conf->stat_file, "  MTU                    : %d\n", intn->mtu);
+
+		inet_ntop(AF_INET6, &intn->linklocal, addr, sizeof(addr));
+		fprintf(g_conf->stat_file, "  Link-local address     : %s\n", addr);
+
+		inet_ntop(AF_INET6, &intn->global, addr, sizeof(addr));
+		fprintf(g_conf->stat_file, "  Global unicast address : %s\n", addr);
 
 		if (intn->mld_version == 0)
-		fprintf(g_conf->stat_file, "  MLD version        : none\n");
+		fprintf(g_conf->stat_file, "  MLD version            : none\n");
 		else
-		fprintf(g_conf->stat_file, "  MLD version        : v%d\n", intn->mld_version);
+		fprintf(g_conf->stat_file, "  MLD version            : v%d\n", intn->mld_version);
 
-		fprintf(g_conf->stat_file, "  Packets received   : %lld\n", intn->stat_packets_received);
-		fprintf(g_conf->stat_file, "  Packets sent       : %lld\n", intn->stat_packets_sent);
-		fprintf(g_conf->stat_file, "  Bytes received     : %lld\n", intn->stat_bytes_received);
-		fprintf(g_conf->stat_file, "  Bytes sent         : %lld\n", intn->stat_bytes_sent);
-		fprintf(g_conf->stat_file, "  ICMP's received    : %lld\n", intn->stat_icmp_received);
-		fprintf(g_conf->stat_file, "  ICMP's sent        : %lld\n", intn->stat_icmp_sent);
+		fprintf(g_conf->stat_file, "  Packets received       : %lld\n", intn->stat_packets_received);
+		fprintf(g_conf->stat_file, "  Packets sent           : %lld\n", intn->stat_packets_sent);
+		fprintf(g_conf->stat_file, "  Bytes received         : %lld\n", intn->stat_bytes_received);
+		fprintf(g_conf->stat_file, "  Bytes sent             : %lld\n", intn->stat_bytes_sent);
+		fprintf(g_conf->stat_file, "  ICMP's received        : %lld\n", intn->stat_icmp_received);
+		fprintf(g_conf->stat_file, "  ICMP's sent            : %lld\n", intn->stat_icmp_sent);
 	}
 
 	fprintf(g_conf->stat_file, "\n");
@@ -1208,6 +1277,7 @@ void sigusr1(int i)
 	fprintf(g_conf->stat_file, "Bytes Sent           : %lld\n", g_conf->stat_bytes_sent);
 	fprintf(g_conf->stat_file, "ICMP's received      : %lld\n", g_conf->stat_icmp_received);
 	fprintf(g_conf->stat_file, "ICMP's sent          : %lld\n", g_conf->stat_icmp_sent);
+	fprintf(g_conf->stat_file, "Hop Limit Exceeded   : %lld\n", g_conf->stat_hlim_exceeded);
 	fprintf(g_conf->stat_file, "*** Statistics Dump (end)\n");
 
 	// Flush the information to disk
@@ -1241,6 +1311,17 @@ void send_mld_querys()
 	D(dolog(LOG_DEBUG, "*** Sending MLD Queries - done\n");)
 }
 
+void timeout_signal()
+{
+	// Mark it to be ignored, this avoids double timeouts
+	// one never knows if it takes too long to handle
+	// the first one.
+	signal(SIGALRM, SIG_IGN);
+	
+	// Set the needs_timeout
+	g_needs_timeout = true;
+}
+
 void timeout()
 {
 	struct groupnode	*groupn;
@@ -1271,7 +1352,7 @@ void timeout()
 				if (i < 0) i = -i;
 				
 				// Dead too long?
-				if (i > (ECMH_SUBSCRIPTION_TIMEOUT*2))
+				if (i > (ECMH_SUBSCRIPTION_TIMEOUT * ECMH_ROBUSTNESS_FACTOR))
 				{
 					// Dead too long -> delete it
 					list_delete_node(grpintn->subscriptions, ssn);
@@ -1305,9 +1386,6 @@ void timeout()
 	send_mld_querys();
 
 	D(dolog(LOG_DEBUG, "*** Timeout - done\n");)
-
-	signal(SIGALRM, &timeout);
-	alarm(ECMH_SUBSCRIPTION_TIMEOUT);
 }
 
 // Long options
@@ -1396,13 +1474,13 @@ int main(int argc, char *argv[], char *envp[])
 	// Handle a SIGHUP to reload the config
 	signal(SIGHUP, &sighup);
 
-	// Handle SIGTERM/INT/KILL to cleanup the pid file
+	// Handle SIGTERM/INT/KILL to cleanup the pid file and exit
 	signal(SIGTERM,	&cleanpid);
 	signal(SIGINT,	&cleanpid);
 	signal(SIGKILL,	&cleanpid);
 
 	// Timeout handling
-	signal(SIGALRM, &timeout);
+	signal(SIGALRM, &timeout_signal);
 	alarm(ECMH_SUBSCRIPTION_TIMEOUT);
 
 	// Dump operations
@@ -1452,6 +1530,20 @@ int main(int argc, char *argv[], char *envp[])
 	len = 0;
 	while (len != -1)
 	{
+		// Was a timeout set?
+		if (g_needs_timeout)
+		{
+			// Run timeout routine
+			timeout();
+			
+			// Turn it off
+			g_needs_timeout = false;
+
+			// Reset the alarm
+			signal(SIGALRM, &timeout);
+			alarm(ECMH_SUBSCRIPTION_TIMEOUT);
+		}
+		
 		salen = sizeof(sa);
 		memset(&sa, 0, sizeof(sa));
 		len = recvfrom(g_conf->rawsocket, &buffer, sizeof(buffer), 0, (struct sockaddr *)&sa, &salen);
@@ -1520,6 +1612,9 @@ int main(int argc, char *argv[], char *envp[])
 	// Close files and sockets
 	fclose(g_conf->stat_file);
 	close(g_conf->rawsocket);
+
+	// Free the config memory
+	free(g_conf);
 
 	cleanpid(SIGINT);
 

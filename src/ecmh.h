@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.h,v 1.6 2004/02/17 00:22:29 fuzzel Exp $
- $Date: 2004/02/17 00:22:29 $
+ $Id: ecmh.h,v 1.7 2004/02/17 19:05:13 fuzzel Exp $
+ $Date: 2004/02/17 19:05:13 $
 **************************************/
 
 #define _XOPEN_SOURCE
@@ -44,11 +44,6 @@
 #define PIDFILE "/var/run/ecmh.pid"
 #define ECMH_DUMPFILE "/var/run/ecmh.dump"
 
-// Defines
-#undef DEBUG
-#undef ECMH_SUPPORT_IPV4
-#undef ECMH_SUPPORT_MLD2
-
 #ifdef DEBUG
 #define D(x) x
 #else
@@ -57,7 +52,8 @@
 
 // The timeout for queries
 // as per MLDv2 "9.2.  Query Interval"
-#define ECMH_SUBSCRIPTION_TIMEOUT 125
+#define ECMH_SUBSCRIPTION_TIMEOUT	125
+#define ECMH_ROBUSTNESS_FACTOR		3
 
 #include "linklist.h"
 #include "common.h"
@@ -91,6 +87,7 @@ struct conf
 	uint64_t		stat_bytes_sent;		// Number of bytes forwarded
 	uint64_t		stat_icmp_received;		// Number of ICMP's received
 	uint64_t		stat_icmp_sent;			// Number of ICMP's sent
+	uint64_t		stat_hlim_exceeded;		// Packets that where dropped due to hlim == 0
 };
 
 // Global Stuff

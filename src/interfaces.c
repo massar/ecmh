@@ -3,26 +3,22 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: interfaces.c,v 1.6 2004/02/17 00:22:29 fuzzel Exp $
- $Date: 2004/02/17 00:22:29 $
+ $Id: interfaces.c,v 1.7 2004/02/17 19:05:13 fuzzel Exp $
+ $Date: 2004/02/17 19:05:13 $
 **************************************/
 
 #include "ecmh.h"
 
 void int_add(struct intnode *intn)
 {
-	char ll[INET6_ADDRSTRLEN];
 	listnode_add(g_conf->ints, intn);
 
-	inet_ntop(AF_INET6, &intn->linklocal, ll, sizeof(ll));
-
-	dolog(LOG_DEBUG, "Added %s, link %d, hw %s/%d with an MTU of %d, linklocal: %s\n",
+	dolog(LOG_DEBUG, "Added %s, link %d, hw %s/%d with an MTU of %d\n",
 		intn->name, intn->ifindex,
 		(intn->hwaddr.sa_family == ARPHRD_ETHER ? "ether" : 
 		 (intn->hwaddr.sa_family == ARPHRD_SIT ? "sit" : "???")),
 		intn->hwaddr.sa_family,
-		intn->mtu,
-		ll);
+		intn->mtu);
 }
 
 struct intnode *int_create(int ifindex)
@@ -71,6 +67,13 @@ struct intnode *int_create(int ifindex)
 		return NULL;
 	}
 	memcpy(&intn->hwaddr, &ifreq.ifr_hwaddr, sizeof(intn->hwaddr));
+
+	// Ignore Loopback devices
+	if (intn->hwaddr.sa_family == ARPHRD_LOOPBACK)
+	{
+		int_destroy(intn);
+		return NULL;
+	}
 
 	// All okay	
 	return intn;

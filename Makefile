@@ -1,13 +1,34 @@
-# Easy Cast du Multi Hub
-# Toplevel Makefile allowing easy distribution ;)
+# /**************************************
+#  ecmh - Easy Cast du Multi Hub
+#  by Jeroen Massar <jeroen@unfix.org>
+# ***************************************
+# $Author: fuzzel $
+# $Id: Makefile,v 1.6 2004/02/17 19:05:13 fuzzel Exp $
+# $Date: 2004/02/17 19:05:13 $
+# **************************************/
 #
-# Jeroen Massar <jeroen@unfix.org>
+# Toplevel Makefile allowing easy distribution.
+# Use this makefile for doing almost anything
+# 'make help' shows the possibilities
+#
 
 # The name of the application
 ECMH=ecmh
+
 # The version of this release
-ECMH_VERSION=2004.02.17
+ECMH_VERSION=2004.02.18
 export ECMH_VERSION
+
+# ECMH Compile Time Options
+# Append one of the following option on wish to
+# include certain features, -O3 is the default
+#
+# Optimize             : -O3
+# Enable Debugging     : -DDEBUG
+# Enable IPv4 Support  : -DECMH_SUPPORT_IPV4
+# Enable MLDv2 Support : -DECMH_SUPPORT_MLD2
+ECMH_OPTIONS=-O9
+export ECMH_OPTIONS
 
 # Change this if you want to install into another dirtree
 # Required for eg the Debian Package builder
@@ -25,6 +46,26 @@ srcdir=src/
 
 all:	${srcdir}
 	$(MAKE) -C src all
+
+help:
+	@echo "ecmh - Easy Cast du Multi Hub"
+	@echo "Website: http://unfix.org/projects/ecmh/"
+	@echo "Author : Jeroen Massar <jeroen@unfix.org>"
+	@echo
+	@echo "Makefile targets:"
+	@echo "all      : Build everything"
+	@echo "help     : This little text"
+	@echo "install  : Build & Install"
+	@echo "clean    : Clean the dirs to be pristine in bondage"
+	@echo
+	@echo "Distribution targets:"
+	@echo "dist     : Make all distribution targets"
+	@echo "tar      : Make source tarball (tar.gz)"
+	@echo "bz2      : Make source tarball (tar.bz2)"
+	@echo "deb      : Make Debian binary package (.deb)"
+	@echo "debsrc   : Make Debian source packages"
+	@echo "rpm      : Make RPM package (.rpm)"
+	@echo "rpmsrc   : Make RPM source packages"
 
 install: all
 	mkdir -p $(DESTDIR)${sbindir}
@@ -76,5 +117,4 @@ rpmsrc:	clean
 	# TODO ;)
 
 # Mark targets as phony
-.PHONY : all install clean dist tar bz2 deb debsrc debclean rpm rpmsrc
-
+.PHONY : all install help clean dist tar bz2 deb debsrc debclean rpm rpmsrc

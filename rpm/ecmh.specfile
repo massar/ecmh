@@ -1,15 +1,14 @@
-%define    ecmh_version 2004-01-10
-%define	   ecmh_release 1
+%define    ecmh_version 2004.02.18
 
 Summary:   Multicast Routing Daemon
 Name:      ecmh
-Version:   %(version=`echo %{ecmh_version} | sed 's/-//g'`; echo $version)
-Release:   %{heartbeat_release}
+Version:   %(version=`echo %{ecmh_version} | sed 's/\.//g'`; echo $version)
+Release:   %{ecmh_version}
 License:   GPL
 Group:     System Environment/Daemons
 URL:       http://unfix.org/projects/ecmh/
 Vendor:    Jeroen Massar
-Source:    http://www.sixxs.net/projects/ecmh/download/ecmh_%{ecmh_version}.tar.gz
+Source:    http://unfix.org/projects/ecmh/download/ecmh_%{ecmh_version}.tar.gz
 BuildRoot: /var/tmp/%{name}-root
 
 %description
@@ -20,9 +19,7 @@ fulfills the role of a multicast router, but in userspace.
 %setup -q -n ecmh
 
 %build
-pushd src
 make
-popd
 
 %install
 mkdir -p $RPM_BUILD_ROOT%{_sbindir}
@@ -35,9 +32,8 @@ rm -rf $RPM_BUILD_ROOT
 %doc doc/*
 %defattr(-,root,root)
 %{_sbindir}/ecmh
-%config(noreplace) %attr(600,root,root) %{_sysconfdir}/heartbeat.conf
 
 %changelog
-* Sat Jan 10 2004 Jeroen Massar <jeroen@unfix.org> 20040110-1
+* Tue Jan 17 2004 Jeroen Massar <jeroen@unfix.org> 2004.02.18
+* Sat Jan 10 2004 Jeroen Massar <jeroen@unfix.org> 2004.01.10
 - initial
-

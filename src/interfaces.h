@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: interfaces.h,v 1.4 2004/02/16 13:05:20 fuzzel Exp $
- $Date: 2004/02/16 13:05:20 $
+ $Id: interfaces.h,v 1.5 2004/02/17 19:05:13 fuzzel Exp $
+ $Date: 2004/02/17 19:05:13 $
 **************************************/
 
 // The list of interfaces we do multicast on
@@ -20,6 +20,7 @@ struct intnode
 
 	struct sockaddr	hwaddr;			// Hardware bytes
 	struct in6_addr	linklocal;		// Link local address
+	struct in6_addr	global;			// Global unicast address
 
 	// Per interface statistics
 	uint64_t		stat_packets_received;		// Number of packets received
