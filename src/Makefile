@@ -1,3 +1,12 @@
+# /**************************************
+#  ecmh - Easy Cast du Multi Hub
+#  by Jeroen Massar <jeroen@unfix.org>
+# ***************************************
+# $Author: fuzzel $
+# $Id: Makefile,v 1.2 2004/01/11 21:41:05 fuzzel Exp $
+# $Date: 2004/01/11 21:41:05 $
+# **************************************/
+#
 # Source Makefile for ecmh - Jeroen Massar <jeroen@unfix.org>
 #
 # ECMH_VERSION needs to be defined, gets done by toplevel Makefile

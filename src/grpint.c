@@ -1,3 +1,12 @@
+/**************************************
+ ecmh - Easy Cast du Multi Hub
+ by Jeroen Massar <jeroen@unfix.org>
+***************************************
+ $Author: fuzzel $
+ $Id: grpint.c,v 1.2 2004/01/11 21:41:05 fuzzel Exp $
+ $Date: 2004/01/11 21:41:05 $
+**************************************/
+
 #include "ecmh.h"
 
 struct grpintnode *grpint_create(const struct intnode *interface)

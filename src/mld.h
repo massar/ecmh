@@ -1,3 +1,11 @@
+/**************************************
+ ecmh - Easy Cast du Multi Hub
+ by Jeroen Massar <jeroen@unfix.org>
+***************************************
+ $Author: fuzzel $
+ $Id: mld.h,v 1.2 2004/01/11 21:41:05 fuzzel Exp $
+ $Date: 2004/01/11 21:41:05 $
+**************************************/
 
 // Wrappers so we don't have to change the copied stuff ;)
 #define __u8 uint8_t

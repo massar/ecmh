@@ -1,3 +1,12 @@
+/**************************************
+ ecmh - Easy Cast du Multi Hub
+ by Jeroen Massar <jeroen@unfix.org>
+***************************************
+ $Author: fuzzel $
+ $Id: groups.c,v 1.2 2004/01/11 21:41:05 fuzzel Exp $
+ $Date: 2004/01/11 21:41:05 $
+**************************************/
+
 #include "ecmh.h"
 
 // Create a groupnode
@@ -32,7 +41,7 @@ struct groupnode *group_find(const struct in6_addr *mca)
 
 	LIST_LOOP(g_conf->groups, groupn, ln)
 	{
-		if (COMPARE_IPV6_ADDRESS((*mca), groupn->mca)) return groupn;
+		if (IN6_ARE_ADDR_EQUAL(mca, &groupn->mca)) return groupn;
 	}
 	return NULL;
 }

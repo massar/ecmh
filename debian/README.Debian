@@ -9,6 +9,8 @@ Which calls simply "debian/rules binary" ofcourse ;)
 MLDv2 is disabled at the moment because I need
 to do more interoperability tests first.
 
+This should run out-of-the-box as user nobody.
+
 If you want to test it, download the source
 debian package and set the ECMH_SUPPORT_MLDV2
 define in the src/ecmh.h file.

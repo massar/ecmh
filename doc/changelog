@@ -1,3 +1,21 @@
+ecmh (2004.01.11-1) unstable; urgency=low
+
+  * Comparing argv[2] != "-f" (Reported by Guus Sliepen)
+    now using getopt_long also allowing future options.
+  * Drop root privs, use -u to specify to which user
+    Defaults to 'nobody' for debian.
+  * Now also filters non-multicast from reports/leaves
+  * Logs destination IPv6 vs MLD report MCA differences
+  * Changed COMPARE_IPV6_ADDRESS into IN6_ARE_ADDR_EQUAL statements
+  * Fixed starttime in dump output
+  * Added subscription ages in stats output
+  * Stats file is now opened
+  * We 
+  * Shutdown is now showed in the log
+  * Added cleanup at the end
+
+ -- Jeroen Massar <jeroen@unfix.org>  Sun, 11 Jan 2004 22:02:42 +0100
+
 ecmh (2004.01.10-1) unstable; urgency=low
 
   * Initial package of the initial version.

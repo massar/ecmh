@@ -1,3 +1,12 @@
+/**************************************
+ ecmh - Easy Cast du Multi Hub
+ by Jeroen Massar <jeroen@unfix.org>
+***************************************
+ $Author: fuzzel $
+ $Id: ecmh.h,v 1.2 2004/01/11 21:41:05 fuzzel Exp $
+ $Date: 2004/01/11 21:41:05 $
+**************************************/
+
 #define _XOPEN_SOURCE
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -17,6 +26,8 @@
 #include <time.h>
 #include <signal.h>
 #include <syslog.h>
+#include <pwd.h>
+#include <getopt.h>
 
 #include <net/if.h>
 #include <netinet/if_ether.h>
@@ -47,11 +58,6 @@
 // The timeout for joins, verify with draft - every 5 minutes
 #define ECMH_SUBSCRIPTION_TIMEOUT (5*60)
 
-// XXX: Can this be optimized with a 128bit compare?
-#define COMPARE_IPV6_ADDRESS(a,b) (a.s6_addr32[0] == b.s6_addr32[0] && a.s6_addr32[1] == b.s6_addr32[1] && a.s6_addr32[2] == b.s6_addr32[2] && a.s6_addr32[3] == b.s6_addr32[3])
-#define IS_MC_NODELOCAL(a) (a.s6_addr16[0] == htons(0xff01))
-#define IS_MC_SITELOCAL(a) (a.s6_addr16[0] == htons(0xff02))
-
 #include "linklist.h"
 #include "common.h"
 
@@ -74,10 +80,11 @@ struct conf
 
 	bool			daemonize;			// To Daemonize or to not to Daemonize
 	
-	int			rawsocket;			// RAW socket for receiving.
-	int			rawsocket_out;			// RAW socket for sending outward.
-	
-	time_t			stat_starttime;			// When did we start.
+	int			rawsocket;			// RAW socket for receiving
+	int			rawsocket_out;			// RAW socket for sending outward
+
+	FILE			*stat_file;			// The file handle of ourdump file
+	time_t			stat_starttime;			// When did we start
 	uint64_t		stat_packets_received;		// Number of packets received
 	uint64_t		stat_packets_sent;		// Number of packets forwarded
 	uint64_t		stat_bytes_received;		// Number of bytes received

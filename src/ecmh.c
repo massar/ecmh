@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.c,v 1.1 2004/01/10 23:59:32 fuzzel Exp $
- $Date: 2004/01/10 23:59:32 $
+ $Id: ecmh.c,v 1.2 2004/01/11 21:41:05 fuzzel Exp $
+ $Date: 2004/01/11 21:41:05 $
 **************************************/
 //
 // Docs to check: netdevice(7), packet(7)
@@ -294,13 +294,23 @@ void mld_warning(char *fmt, struct in6_addr *i_mca, const struct intnode *intn)
 
 void l4_ipv6_icmpv6_mld1_report(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t len, struct mld1 *mld1, const uint16_t plen)
 {
-	
 	struct grpintnode	*grpintn;
 	struct in6_addr		any;
 
-	// Ignore node and link local multicast addresses
-	if (	IN6_IS_ADDR_MC_NODELOCAL(&mld1->mca) ||
+	// Ignore groups:
+	// - non multicast 
+	// - node local multicast addresses
+	// - link local multicast addresses
+	// - multicast destination mismatch with ipv6 destination
+	if (	!IN6_IS_ADDR_MULTICAST(&mld1->mca) ||
+		IN6_IS_ADDR_MC_NODELOCAL(&mld1->mca) ||
 		IN6_IS_ADDR_MC_LINKLOCAL(&mld1->mca)) return;
+
+	if (!IN6_ARE_ADDR_EQUAL(&iph->ip6_dst, &mld1->mca))
+	{
+		mld_warning("Ignoring MLDv1 Report for %s on interface %s\n", &mld1->mca, intn);
+		return;
+	}
 
 	// Find the grpintnode or create it
 	grpintn = groupint_get(&mld1->mca, intn);
@@ -329,9 +339,20 @@ void l4_ipv6_icmpv6_mld1_reduction(struct intnode *intn, const struct ip6_hdr *i
 	struct subscrnode	*subscrn;
 	struct in6_addr		any;
 
-	// Ignore node and link local multicast addresses
-	if (	IN6_IS_ADDR_MC_NODELOCAL(&mld1->mca) ||
+	// Ignore groups:
+	// - non multicast 
+	// - node local multicast addresses
+	// - link local multicast addresses
+	// - multicast destination mismatch with ipv6 destination
+	if (	!IN6_IS_ADDR_MULTICAST(&mld1->mca) ||
+		IN6_IS_ADDR_MC_NODELOCAL(&mld1->mca) ||
 		IN6_IS_ADDR_MC_LINKLOCAL(&mld1->mca)) return;
+
+	if (!IN6_ARE_ADDR_EQUAL(&iph->ip6_dst, &mld1->mca))
+	{
+		mld_warning("Ignoring MLDv1 Reduction for %s on interface %s\n", &mld1->mca, intn);
+		return;
+	}
 
 	// Find the groupnode
 	groupn = group_find(&mld1->mca);
@@ -536,8 +557,8 @@ void l4_ipv6_multicast(struct intnode *intn, const struct ip6_hdr *iph, const ui
 		LIST_LOOP(grpintn->subscriptions, subscrn, in2)
 		{
 			// Unspecified or specific subscription to this address?
-			if (COMPARE_IPV6_ADDRESS(subscrn->ipv6, in6addr_any) ||
-				COMPARE_IPV6_ADDRESS(subscrn->ipv6, iph->ip6_src))
+			if (	IN6_ARE_ADDR_EQUAL(&subscrn->ipv6, &in6addr_any) ||
+				IN6_ARE_ADDR_EQUAL(&subscrn->ipv6, &iph->ip6_src))
 			{
 				sendpacket6(grpintn->interface, iph, len);
 				
@@ -777,39 +798,42 @@ void sigusr1(int i)
 	uptime_s -= uptime_h *  60*60;
 	uptime_m  = uptime_s /  60;
 	uptime_s -= uptime_m *  60;
-	
-	out = fopen(ECMH_DUMPFILE, "w");
-	if (!out)
-	{
-		dolog(LOG_WARNING, "Couldn't open statistics file \"%s\" for dumping\n", ECMH_DUMPFILE);
-		return;
-	}
-	
-	fprintf(out, "*** Subscription Information Dump\n");
+
+	// Rewind the file to the start
+	rewind(g_conf->stat_file);
+
+	// Truncate the file
+	ftruncate(fileno(g_conf->stat_file), (off_t)0);
+
+	fprintf(g_conf->stat_file, "*** Subscription Information Dump\n");
 
 	// Timeout all the groups that didn't refresh yet
 	LIST_LOOP(g_conf->groups, groupn, ln)
 	{
 		inet_ntop(AF_INET6, &groupn->mca, addr, sizeof(addr));
-		fprintf(out, "Group: %s\n", addr);
+		fprintf(g_conf->stat_file, "Group: %s\n", addr);
 
 		LIST_LOOP(groupn->interfaces, grpintn, gn)
 		{
-			fprintf(out, "\tInterface: %s\n", grpintn->interface->name);
+			fprintf(g_conf->stat_file, "\tInterface: %s\n", grpintn->interface->name);
 
 			LIST_LOOP(grpintn->subscriptions, subscrn, ssn)
 			{
+				int i = time_tee - subscrn->refreshtime;
+				if (i < 0) i = -i;
+
 				inet_ntop(AF_INET6, &subscrn->ipv6, addr, sizeof(addr));
-				fprintf(out, "\t\t%s\n", addr);
+				fprintf(g_conf->stat_file, "\t\t%s (%d seconds old)\n", addr, i);
+
 				subscriptions++;
 			}
 		}
 	}
 	
-	fprintf(out, "*** Subscription Information Dump (end - %d groups, %d subscriptions)\n", g_conf->groups->count, subscriptions);
-	fprintf(out, "\n");
+	fprintf(g_conf->stat_file, "*** Subscription Information Dump (end - %d groups, %d subscriptions)\n", g_conf->groups->count, subscriptions);
+	fprintf(g_conf->stat_file, "\n");
 
-	fprintf(out, "*** Interface Dump\n");
+	fprintf(g_conf->stat_file, "*** Interface Dump\n");
 
 	// Timeout all the groups that didn't refresh yet
 	LIST_LOOP(g_conf->ints, intn, ln)
@@ -820,35 +844,35 @@ void sigusr1(int i)
 		{
 			inet_ntop(AF_INET6, &intn->linklocal, addr, sizeof(addr));
 	
-			fprintf(out, "\n");
-			fprintf(out, "Interface: %s\n", intn->name);
-			fprintf(out, "  Index  : %d\n", intn->ifindex);
-			fprintf(out, "  MTU    : %d\n", intn->mtu);
-			fprintf(out, "  LL     : %s\n", addr);
+			fprintf(g_conf->stat_file, "\n");
+			fprintf(g_conf->stat_file, "Interface: %s\n", intn->name);
+			fprintf(g_conf->stat_file, "  Index  : %d\n", intn->ifindex);
+			fprintf(g_conf->stat_file, "  MTU    : %d\n", intn->mtu);
+			fprintf(g_conf->stat_file, "  LL     : %s\n", addr);
 		}
 	}
 
-	fprintf(out, "\n");
-	fprintf(out, "*** Interface Dump (end - %d interfaces)\n", g_conf->ints->count);
-	fprintf(out, "\n");
+	fprintf(g_conf->stat_file, "\n");
+	fprintf(g_conf->stat_file, "*** Interface Dump (end - %d interfaces)\n", g_conf->ints->count);
+	fprintf(g_conf->stat_file, "\n");
 
-	strftime(addr, sizeof(addr), "%F %T", gmtime(&time_tee));
+	strftime(addr, sizeof(addr), "%F %T", gmtime(&g_conf->stat_starttime));
 
-	fprintf(out, "*** Statistics Dump\n");
-	fprintf(out, "Version              : ecmh %s\n", ECMH_VERSION);
-	fprintf(out, "Started              : %s\n", addr);
-	fprintf(out, "Uptime               : %d days %02d:%02d:%02d\n", uptime_d, uptime_h, uptime_m, uptime_s);
-	fprintf(out, "Interfaces Monitored : %d\n", g_conf->ints->count);
-	fprintf(out, "Groups Managed       : %d\n", g_conf->groups->count);
-	fprintf(out, "Total Subscriptions  : %d\n", subscriptions);
-	fprintf(out, "Packets Received     : %lld\n", g_conf->stat_packets_received);
-	fprintf(out, "Packets Sent         : %lld\n", g_conf->stat_packets_sent);
-	fprintf(out, "Bytes Received       : %lld\n", g_conf->stat_bytes_received);
-	fprintf(out, "Bytes Sent           : %lld\n", g_conf->stat_bytes_sent);
-	fprintf(out, "*** Statistics Dump (end)\n");
+	fprintf(g_conf->stat_file, "*** Statistics Dump\n");
+	fprintf(g_conf->stat_file, "Version              : ecmh %s\n", ECMH_VERSION);
+	fprintf(g_conf->stat_file, "Started              : %s GMT\n", addr);
+	fprintf(g_conf->stat_file, "Uptime               : %d days %02d:%02d:%02d\n", uptime_d, uptime_h, uptime_m, uptime_s);
+	fprintf(g_conf->stat_file, "Interfaces Monitored : %d\n", g_conf->ints->count);
+	fprintf(g_conf->stat_file, "Groups Managed       : %d\n", g_conf->groups->count);
+	fprintf(g_conf->stat_file, "Total Subscriptions  : %d\n", subscriptions);
+	fprintf(g_conf->stat_file, "Packets Received     : %lld\n", g_conf->stat_packets_received);
+	fprintf(g_conf->stat_file, "Packets Sent         : %lld\n", g_conf->stat_packets_sent);
+	fprintf(g_conf->stat_file, "Bytes Received       : %lld\n", g_conf->stat_bytes_received);
+	fprintf(g_conf->stat_file, "Bytes Sent           : %lld\n", g_conf->stat_bytes_sent);
+	fprintf(g_conf->stat_file, "*** Statistics Dump (end)\n");
 
-	// Close our stats file
-	fclose(out);
+	// Flush the information to disk
+	fflush(g_conf->stat_file);
 
 	dolog(LOG_INFO, "Dumped statistics into %s\n", ECMH_DUMPFILE);
 
@@ -905,11 +929,12 @@ void timeout()
 				int i = time_tee - subscrn->refreshtime;
 				if (i < 0) i = -i;
 			
-				// Still alive?
-				if (i < (ECMH_SUBSCRIPTION_TIMEOUT)) continue;
-	
-				// Dead too long -> delete it
-				listnode_delete(grpintn->subscriptions, ssn);
+				// Dead too long?
+				if (i > (ECMH_SUBSCRIPTION_TIMEOUT))
+				{
+					// Dead too long -> delete it
+					listnode_delete(grpintn->subscriptions, ssn);
+				}
 			}
 		
 			if (grpintn->subscriptions->count == 0)
@@ -935,6 +960,15 @@ void timeout()
 	alarm(ECMH_SUBSCRIPTION_TIMEOUT);
 }
 
+// Long options
+
+static struct option const long_options[] = {
+	{"foreground",	no_argument,		NULL, 'f'},
+	{"user",	required_argument,	NULL, 'u'},
+	{"group",	required_argument,	NULL, 'g'},
+	{NULL,		0, NULL, 0},
+};
+
 int main(int argc, char *argv[], char *envp[])
 {
 	int			i=0, len;
@@ -946,23 +980,48 @@ int main(int argc, char *argv[], char *envp[])
 	struct ip		*hdr_ip = (struct ip *)&buffer;
 
 	struct intnode		*intn = NULL;
+	
+	int			drop_uid = 0, drop_gid = 0, option_index = 0;
+	struct passwd		*passwd;
 
 	init();
-	
-	if (	argc >= 2 &&
-		argv[1] != "-f")
-	{
-		fprintf(stderr,
-			"%s -f\n"
-			"\n"
-			"-f == don't daemonize\n",
-			argv[0]);
-		return -1;
-	}
 
-	if (argc == 2)
+	// Handle arguments
+
+	while ((i = getopt_long(argc, argv, "fu:g:", long_options, &option_index)) != EOF)
 	{
-		if (argv[1] == "-f") g_conf->daemonize = true;
+		switch (i)
+		{
+		case 0:
+			// Long option
+			break;
+
+		case 'f':
+			g_conf->daemonize = true;
+			break;
+
+		case 'u':
+			passwd = getpwnam(optarg);
+			if (passwd)
+			{
+				drop_uid = passwd->pw_uid;
+				drop_gid = passwd->pw_gid;
+			}
+			else fprintf(stderr, "Couldn't find user %s, aborting\n", optarg);
+			break;
+
+		default:
+			fprintf(stderr,
+				"%s [-f] [-u username] [-g groupname]\n"
+				"\n"
+				"-f, --foreground          don't daemonize\n"
+				"-u, --user username       drop (setuid+setgid) to user after startup\n"
+				"\n"
+				"Report bugs to Jeroen Massar <jeroen@unfix.org>.\n"
+				"Also see the website at http://unfix.org/projects/ecmh/\n",
+				argv[0]);
+			return -1;
+		}
 	}
 
 	// Daemonize
@@ -1003,10 +1062,18 @@ int main(int argc, char *argv[], char *envp[])
 	signal(SIGUSR2, SIG_IGN);
 
 	// Show our version in the startup logs ;)
-	dolog(LOG_INFO, "ecmh %s by Jeroen Massar <jeroen@unfix.org>\n", ECMH_VERSION);
+	dolog(LOG_INFO, "Easy Cast du Multi Hub (ecmh) %s by Jeroen Massar <jeroen@unfix.org>\n", ECMH_VERSION);
 
 	// Save our PID
 	savepid();
+	
+	// Open our dump file
+	g_conf->stat_file = fopen(ECMH_DUMPFILE, "w");
+	if (!g_conf->stat_file)
+	{
+		dolog(LOG_ERR, "Couldn't open dumpfile %s\n", ECMH_DUMPFILE);
+		return -1;
+	}
 
 	// Allocate a PACKET socket which can send and receive
 	//  anything we want (anything ???.... anythinggg... ;)
@@ -1032,6 +1099,11 @@ int main(int argc, char *argv[], char *envp[])
 	{
 		dolog(LOG_WARNING, "Couldn't raise priority to -15, if streams are shaky, upgrade your cpu or fix this\n");
 	}
+
+	// Drop our root priveleges.
+	// We don't need them anymore anyways
+	if (drop_uid != 0) setuid(drop_uid);
+	if (drop_gid != 0) setgid(drop_gid);
 	
 	// Update the complete interfaces list
 	update_interfaces(NULL);
@@ -1090,6 +1162,21 @@ int main(int argc, char *argv[], char *envp[])
 		fflush(stdout);
 
 	}
+
+	// Dump the stats one last time
+	sigusr1(SIGUSR1);
+
+	// Show the message in the log
+	dolog(LOG_INFO, "Shutdown, thank you for using ecmh\n");
+
+	// Cleanup the nodes
+	list_delete_all_node(g_conf->ints);
+	list_delete_all_node(g_conf->groups);
+	
+	// Close files and sockets
+	fclose(g_conf->stat_file);
+	close(g_conf->rawsocket);
+	close(g_conf->rawsocket_out);
 
 	cleanpid(SIGINT);
 

@@ -11,9 +11,10 @@ NAME=ecmh
 DESC="Easy Cast du Multi Hub (ecmh)"
 BACKGROUND=true
 
-# Options, currently always empty
-# as the only thing is -f, which keeps the daemon in the forground and we don't want that
-OPTIONS=""
+# Options, per default we let the program
+# drop root priveleges to nobody
+# Other option to use is -f (Foreground), but that is useless for inits.
+OPTIONS="-u nobody"
 
 test -x /usr/sbin/ecmh || exit 0
 
