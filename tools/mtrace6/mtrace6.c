@@ -328,7 +328,7 @@ show_ip6_result(from6, datalen)
 		return;
 	}
 
-	switch(mld6_tr_resp->mld_type) {
+	switch(mld6_tr_resp->type) {
 	case MLD_MTRACE_RESP:
 		if ((datalen - sizeof(*mld6_tr_resp) - sizeof(*tr6_rquery)) %
 		    sizeof(*tr6_resp)) {
@@ -376,7 +376,7 @@ show_ip6_result(from6, datalen)
 		break;
 	default:		/* impossible... */
 		warnx("show_ip6_result: invalid ICMPv6 type(%d)",
-		      mld6_tr_resp->mld_type); /* assert? */
+		      mld6_tr_resp->type); /* assert? */
 		break;
 	}
 }
@@ -674,9 +674,9 @@ make_ip6_packet()
 
 	/* fill in MLD header */
 	mld6_tr_query = (struct mld1 *)querypacket;
-	mld6_tr_query->mld_type = MLD_MTRACE;
-	mld6_tr_query->mld_code = maxhops & 0xff;
-	mld6_tr_query->mld_addr = ((struct sockaddr_in6 *)grp_sock)->sin6_addr;
+	mld6_tr_query->type = MLD_MTRACE;
+	mld6_tr_query->code = maxhops & 0xff;
+	mld6_tr_query->mca = ((struct sockaddr_in6 *)grp_sock)->sin6_addr;
 
 	/* fill in mtrace query fields */
 	tr6_query = (struct tr6_query *)(mld6_tr_query + 1);
