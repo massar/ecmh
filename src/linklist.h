@@ -29,7 +29,7 @@ struct list
 #define getdata(X)	((X)->data)
 
 /* Prototypes. */
-struct list	*list_new();
+struct list	*list_new(void);
 void		list_free(struct list *);
 void		listnode_add(struct list *, void *);
 void		listnode_delete(struct list *, void *);

@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: groups.c,v 1.6 2004/10/07 09:28:21 fuzzel Exp $
- $Date: 2004/10/07 09:28:21 $
+ $Id: groups.c,v 1.7 2005/02/09 17:58:06 fuzzel Exp $
+ $Date: 2005/02/09 17:58:06 $
 **************************************/
 
 #include "ecmh.h"
@@ -12,11 +12,12 @@
 /* Create a groupnode */
 struct groupnode *group_create(const struct in6_addr *mca)
 {
-	struct groupnode *groupn = malloc(sizeof(struct groupnode));
+	struct groupnode *groupn = malloc(sizeof(*groupn));
 
 	if (!groupn) return NULL;
 
 	/* Fill her in */
+	memset(groupn, 0, sizeof(*groupn));
 	memcpy(&groupn->mca, mca, sizeof(*mca));
 
 	/* Setup the list */
@@ -73,13 +74,12 @@ struct groupnode *group_find(const struct in6_addr *mca)
  * mca		= The IPv6 address of the Multicast group
  * interface	= the interface we received it on
  */
-struct grpintnode *groupint_get(const struct in6_addr *mca, struct intnode *interface)
+struct grpintnode *groupint_get(const struct in6_addr *mca, struct intnode *interface, bool *isnew)
 {
 	struct groupnode	*groupn;
 	struct grpintnode	*grpintn;
-	struct intnode		*intn;
-	struct listnode		*ln;
-	bool			forward = false;
+
+	*isnew = false;
 
 	/* Find our beloved group */
 	groupn = group_find(mca);
@@ -90,35 +90,23 @@ struct grpintnode *groupint_get(const struct in6_addr *mca, struct intnode *inte
 		groupn = group_create(mca);
 
 		/* Add the group to the list */
-		if (groupn) listnode_add(g_conf->groups, (void *)groupn);
-		
-		forward = true;
+		if (groupn)
+		{
+			listnode_add(g_conf->groups, (void *)groupn);
+			*isnew = true;
+		}
 	}
 
 	/* Forward it if we haven't done so for quite some time */
 	else if ((time(NULL) - groupn->lastforward) >= ECMH_SUBSCRIPTION_TIMEOUT)
 	{
 		dolog(LOG_DEBUG, "Last update was %d seconds ago -> resending\n", (int)(time(NULL) - groupn->lastforward));
-		forward = true;
+		*isnew = true;
 	}
 
-	if (forward)
-	{
-		dolog(LOG_DEBUG, "Broadcasting group to other interfaces...\n");
+	if (!groupn) return NULL;
 
-		/* Broadcast that we want this new group */
-		LIST_LOOP(g_conf->ints, intn, ln)
-		{
-			/* Skip the interface it came from */
-			if (interface->ifindex == intn->ifindex) continue;
-
-			/* Send the MLD Report */
-			mld_send_report(intn, mca);
-		}
-		groupn->lastforward = time(NULL);
-	}
-
-	if (!groupn) return false;
+	if (isnew) groupn->lastforward = time(NULL);
 
 	/* Find the interface in this group */
 	grpintn = grpint_find(groupn->interfaces, interface);

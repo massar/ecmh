@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: subscr.c,v 1.6 2004/10/07 09:28:21 fuzzel Exp $
- $Date: 2004/10/07 09:28:21 $
+ $Id: subscr.c,v 1.7 2005/02/09 17:58:06 fuzzel Exp $
+ $Date: 2005/02/09 17:58:06 $
 **************************************/
 
 #include "ecmh.h"
@@ -17,6 +17,7 @@ struct subscrnode *subscr_create(const struct in6_addr *ipv6, int mode)
 	if (!subscrn) return NULL;
 
 	/* Fill her in */
+	memset(subscrn, 0, sizeof(*subscrn));
 	memcpy(&subscrn->ipv6, ipv6, sizeof(*ipv6));
 	subscrn->mode = mode;
 	subscrn->refreshtime = time(NULL);

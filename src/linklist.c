@@ -26,7 +26,7 @@ void list_free(struct list *l)
 }
 
 /* Allocate new listnode.  Internal use only. */
-static struct listnode *listnode_new()
+static struct listnode *listnode_new(void)
 {
 	struct listnode *node;
 

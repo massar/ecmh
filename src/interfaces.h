@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: interfaces.h,v 1.7 2004/10/08 17:24:11 fuzzel Exp $
- $Date: 2004/10/08 17:24:11 $
+ $Id: interfaces.h,v 1.8 2005/02/09 17:58:06 fuzzel Exp $
+ $Date: 2005/02/09 17:58:06 $
 **************************************/
 
 #define INTNODE_MAXIPV4 4			/* Maximum number of IPv4 aliases */
@@ -15,10 +15,10 @@
  */
 struct intnode
 {
-	unsigned int	ifindex;		/* Interface Index */
+	unsigned int	ifindex;		/* The ifindex */
 	char		name[IFNAMSIZ];		/* Name of the interface */
 	unsigned int	groupcount;		/* Number of groups this interface joined */
-	unsigned int	mtu;			/* The MTU of this interface */
+	unsigned int	mtu;			/* The MTU of this interface (mtu = 0 -> invalid interface) */
 
 	unsigned int	mld_version;		/* The MLD version this interface supports */
 	time_t		mld_last_v1;		/* The last v1 we have seen -> allows upgrade to v2 */
@@ -44,10 +44,11 @@ struct intnode
 	uint64_t	stat_bytes_sent;	/* Number of bytes sent */
 	uint64_t	stat_icmp_received;	/* Number of ICMP's received */
 	uint64_t	stat_icmp_sent;		/* Number of ICMP's sent */
+
+	bool		upstream;		/* This interface is an upstream */
 };
 
 /* Node functions */
-void int_add(struct intnode *intn);
 #ifndef ECMH_BPF
 struct intnode *int_create(unsigned int ifindex);
 #else
@@ -56,9 +57,9 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel);
 void int_destroy(struct intnode *intn);
 
 /* List functions */
-struct intnode *int_find(unsigned int ifindex, bool resort);
+struct intnode *int_find(unsigned int ifindex);
 #ifdef ECMH_BPF
-struct intnode *int_find_ipv4(bool local, struct in_addr *ipv4, bool resort);
+struct intnode *int_find_ipv4(bool local, struct in_addr *ipv4);
 #endif
 
 /* Control function */

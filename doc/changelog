@@ -1,3 +1,28 @@
+ecmh (2005.02.09-1) stable; urgency=medium
+
+  * Fixed MLDv2, should now work correctly.
+  * Tested against live Cisco connected to m6bone
+    Thanks to: Bernhard Schmidt & Marco d'Itri
+  * Upstream interface selection (-i)
+      No queries will be sent to that interface.
+  * Very Strict compilation warnings.
+
+ -- Jeroen Massar <jeroen@unfix.org>  Wed, 09 Feb 2005 18:55:42 +0100
+
+ecmh (2004.11.24-1) stable; urgency=low
+
+  * Releasing as 2004.11.24
+  * MLDv2 Reporting
+  * Interface lookups now in an array for faster lookup
+  * Promisc mode option, which is useful for broken cards
+  * Tigher mld[1|2]only modes
+  * Not specifying -DECMH_SUPPORT_MLD2 completely disabled MLDv2 code
+  * -DECMH_GETIFADDR option for turning on/off the usage of getifaddr()
+    useful when the kernel does not support it correctly
+  * Higher verbosity
+
+ -- Jeroen Massar <jeroen@unfix.org>  Wed, 24 Nov 2004 23:52:42 +0100
+
 ecmh (2004.10.10-1) stable; urgency=low
 
   * Releasing as 2004.10.10

@@ -3,30 +3,11 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: interfaces.c,v 1.9 2004/10/08 17:24:11 fuzzel Exp $
- $Date: 2004/10/08 17:24:11 $
+ $Id: interfaces.c,v 1.10 2005/02/09 17:58:06 fuzzel Exp $
+ $Date: 2005/02/09 17:58:06 $
 **************************************/
 
 #include "ecmh.h"
-
-void int_add(struct intnode *intn)
-{
-	listnode_add(g_conf->ints, intn);
-
-	dolog(LOG_DEBUG, "Added %s, link %u, hw %s/%u with an MTU of %d\n",
-		intn->name, intn->ifindex,
-#ifdef linux
-		(intn->hwaddr.sa_family == ARPHRD_ETHER ? "ether" : 
-		 (intn->hwaddr.sa_family == ARPHRD_SIT ? "sit" : "???")),
-		intn->hwaddr.sa_family,
-#else
-		(intn->dlt == DLT_NULL ? "Null":
-		 (intn->dlt == DLT_EN10MB ? "Ethernet" : "???")),
-		intn->dlt,
-
-#endif
-		intn->mtu);
-}
 
 #ifdef ECMH_BPF
 bool int_create_bpf(struct intnode *intn, bool tunnel)
@@ -72,12 +53,15 @@ bool int_create_bpf(struct intnode *intn, bool tunnel)
 		}
 		dolog(LOG_INFO, "Bound BPF %s to %s\n", devname, intn->name);
 
-		if (ioctl(intn->socket, BIOCPROMISC))
+		if (g_conf->promisc)
 		{
-		    	dolog(LOG_ERR, "Could not set %s to promisc: %s (%d)\n", intn->name, strerror(errno), errno);
-			return false;
+			if (ioctl(intn->socket, BIOCPROMISC))
+			{
+			    	dolog(LOG_ERR, "Could not set %s to promisc: %s (%d)\n", intn->name, strerror(errno), errno);
+				return false;
+			}
+			dolog(LOG_INFO, "BPF interface for %s is now promiscious\n", intn->name);
 		}
-		dolog(LOG_INFO, "BPF interface for %s is now promiscious\n", intn->name);
 
 		if (fcntl(intn->socket, F_SETFL, O_NONBLOCK) < 0)
 		{
@@ -123,6 +107,7 @@ bool int_create_bpf(struct intnode *intn, bool tunnel)
 				dolog(LOG_ERR, "Expecting a memory shortage, exiting\n");
 				exit(-1);
 			}
+			memset(g_conf->buffer, 0, g_conf->bufferlen);
 		}
 
 		/* Add it to the select set */
@@ -182,11 +167,29 @@ struct intnode *int_create(unsigned int ifindex)
 struct intnode *int_create(unsigned int ifindex, bool tunnel)
 #endif
 {
-	struct intnode	*intn = malloc(sizeof(struct intnode));
+	struct intnode	*intn = NULL;
 	struct ifreq	ifreq;
 	int		sock;
 
-	if (!intn) return NULL;
+	/* Resize the interface array if needed */
+	if ((ifindex+1) > g_conf->maxinterfaces)
+	{
+		g_conf->ints = (struct intnode *)realloc(g_conf->ints, sizeof(struct intnode)*(ifindex+1));
+
+		if (!g_conf->ints)
+		{
+			dolog(LOG_ERR, "Couldn't init() - no memory for interface array.\n");
+			exit(-1);
+		}
+
+		/* Clear out the new memory */
+		memset(&g_conf->ints[g_conf->maxinterfaces], 0, sizeof(struct intnode)*((ifindex+1)-g_conf->maxinterfaces));
+
+		/* Configure the new maximum */
+		g_conf->maxinterfaces = (ifindex+1);
+	}
+
+	intn = &g_conf->ints[ifindex];
 
 #ifndef ECMH_BPF
 	dolog(LOG_DEBUG, "Creating new interface %u\n", ifindex);
@@ -215,7 +218,7 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 	/* Get the interface name (eth0/sit0/...) */
 	/* Will be used for reports etc */
 	memset(&ifreq, 0, sizeof(ifreq));
-#ifdef linux
+#ifdef ECMH_BPF
 	ifreq.ifr_ifindex = ifindex;
 	if (ioctl(sock, SIOCGIFNAME, &ifreq) != 0)
 #else
@@ -227,7 +230,7 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 		close(sock);
 		return NULL;
 	}
-#ifdef linux
+#ifdef ECMH_BPF
 	memcpy(&intn->name, &ifreq.ifr_name, sizeof(intn->name));
 #else
 	memcpy(&ifreq.ifr_name, &intn->name, sizeof(ifreq.ifr_name));
@@ -245,7 +248,7 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 	}
 	intn->mtu = ifreq.ifr_mtu;
 
-#ifdef linux
+#ifndef ECMH_BPF
 	/* Get hardware address + type */
 	if (ioctl(sock, SIOCGIFHWADDR, &ifreq) != 0)
 	{
@@ -258,25 +261,62 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 	memcpy(&intn->hwaddr, &ifreq.ifr_hwaddr, sizeof(intn->hwaddr));
 #endif
 
-	/* Cleanup the socket */
-	close(sock);
-
-#ifdef linux
+#ifndef ECMH_BPF
 	/* Ignore Loopback devices */
 	if (intn->hwaddr.sa_family == ARPHRD_LOOPBACK)
 	{
 		int_destroy(intn);
+		close(sock);
 		return NULL;
 	}
-#endif /* Linux */
+#endif
 
 #ifdef ECMH_BPF
 	if (!int_create_bpf(intn, tunnel))
 	{
 		int_destroy(intn);
+		close(sock);
 		return NULL;
 	}
+#else
+	/* Configure the interface to receive all multicast addresses */
+	if (g_conf->promisc)
+	{
+		struct ifreq ifr;
+		int err;
+
+		memset(&ifr, 0, sizeof(ifr));
+		strncpy(ifr.ifr_name, intn->name, sizeof(ifr.ifr_name));
+        	err = ioctl(sock, SIOCGIFFLAGS, &ifr);
+		if (err)
+		{
+			dolog(LOG_WARNING, "Couldn't get interface flags of %u/%s: %s\n",
+				intn->ifindex, intn->name, strerror(errno));
+		}
+		else
+		{
+			/* Should use IFF_ALLMULTI, but that is not supported... */
+			ifr.ifr_flags |= IFF_PROMISC;
+			err = ioctl(sock, SIOCSIFFLAGS, &ifr);
+			if (err)
+			{
+				dolog(LOG_WARNING, "Couldn't get interface flags of %u/%s: %s\n",
+					intn->ifindex, intn->name, strerror(errno));
+			}
+		}
+	}
 #endif
+
+	/* Cleanup the socket */
+	close(sock);
+
+	if (	g_conf->upstream &&
+		strcasecmp(intn->name, g_conf->upstream) == 0)
+	{
+		intn->upstream = true;
+		g_conf->upstream_id = intn->ifindex;
+	}
+	else intn->upstream = false;
 
 	/* All okay */
 	return intn;
@@ -284,8 +324,6 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 
 void int_destroy(struct intnode *intn)
 {
-	if (!intn) return;
-
 D(	dolog(LOG_DEBUG, "Destroying interface %s\n", intn->name);)
 
 #ifdef ECMH_BPF
@@ -296,44 +334,34 @@ D(	dolog(LOG_DEBUG, "Destroying interface %s\n", intn->name);)
 	}
 #endif
 
-	free(intn);
-	return;
+	/* Resetting the MTU to zero disabled the interface */
+	intn->mtu = 0;
 }
 
-/*
- * Both int_find() & int_find_ipv4() move the node to the beginning
- * This way it will be in the front the next time we try to find it.
- */
-struct intnode *int_find(unsigned int ifindex, bool resort)
+struct intnode *int_find(unsigned int ifindex)
 {
-	struct intnode	*intn;
-	struct listnode	*ln;
-
-	LIST_LOOP(g_conf->ints, intn, ln)
-	{
-		if (ifindex == intn->ifindex)
-		{
-			if (resort) list_movefront_node(g_conf->ints, ln);
-			return intn;
-		}
-	}
-	return NULL;
+	if (ifindex >= g_conf->maxinterfaces || g_conf->ints[ifindex].mtu == 0) return NULL;
+	return &g_conf->ints[ifindex];
 }
 
 #ifdef ECMH_BPF
-struct intnode *int_find_ipv4(bool local, struct in_addr *ipv4, bool resort)
+struct intnode *int_find_ipv4(bool local, struct in_addr *ipv4)
 {
 	struct intnode	*intn;
 	struct listnode	*ln;
 	int		num = 0;
+	unsigned int	i;
 
-	LIST_LOOP(g_conf->ints, intn, ln)
+	for (i=0;i<g_conf->maxinterfaces;i++)
 	{
+		intn = &g_conf->ints[i];
+		/* Skip uninitialized interfaces */
+		if (intn->mtu == 0) continue;
+
 		for (num=0;num<INTNODE_MAXIPV4;num++)
 		{
 			if (memcmp(local ? &intn->ipv4_local[num] : &intn->ipv4_remote, ipv4, sizeof(ipv4)) == 0)
 			{
-				if (resort) list_movefront_node(g_conf->ints, ln);
 				return intn;
 			}
 
@@ -358,6 +386,13 @@ void int_set_mld_version(struct intnode *intn, unsigned int newversion)
 {
 	if (newversion == 1)
 	{
+#ifdef ECMH_SUPPORT_MLD2
+		if (g_conf->mld2only)
+		{
+			dolog(LOG_DEBUG, "Configured as MLDv2 Only Host, ignoring MLDv1 packet\n");
+			return;
+		}
+#endif
 		/*
 		 * Only reset the version number
 		 * if it wasn't set and not v1 yet
@@ -371,6 +406,7 @@ void int_set_mld_version(struct intnode *intn, unsigned int newversion)
 			intn->mld_last_v1 = time(NULL);
 		}
 	}
+#ifdef ECMH_SUPPORT_MLD2
 	else
 	{
 		/*
@@ -387,6 +423,13 @@ void int_set_mld_version(struct intnode *intn, unsigned int newversion)
 			intn->mld_last_v1 = 0;
 		}
 
+		if (g_conf->mld1only)
+		{
+			dolog(LOG_DEBUG, "Configured as MLDv1 Only Host, ignoring possible upgrade to MLDv%u\n",
+				newversion);
+			return;
+		}
+
 		/*
 		 * Only reset the version number
 		 * if it wasn't set and not v1 yet and not v2 yet
@@ -395,11 +438,18 @@ void int_set_mld_version(struct intnode *intn, unsigned int newversion)
 			intn->mld_version != 1 &&
 			intn->mld_version != 2)
 		{
-			dolog(LOG_DEBUG, "MLDv%u detected on %s, setting it to MLDv%u\n",
-				newversion, intn->name, newversion);
+			dolog(LOG_DEBUG, "MLDv%u detected on %s/%u, setting it to MLDv%u\n",
+				newversion, intn->name, intn->ifindex, newversion);
 			intn->mld_version = newversion;
 		}
 	}
+#else /* ECMH_SUPPORT_MLD2 */
+	else
+	{
+		dolog(LOG_DEBUG, "MLDv%u detected on %s/%u while that version is not supported\n",
+			newversion, intn->name);
+	}
+#endif /* ECMH_SUPPORT_MLD2 */
 }
 
 #ifdef ECMH_BPF
@@ -434,6 +484,7 @@ void local_update(struct intnode *intn)
 			dolog(LOG_ERR, "Couldn't allocate memory for localnode\n");
 			continue;
 		}
+		memset(localn, 0, sizeof(*localn));
 
 		/* Fill it in */
 		localn->intn = intn;

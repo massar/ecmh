@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.h,v 1.9 2004/10/10 11:35:52 fuzzel Exp $
- $Date: 2004/10/10 11:35:52 $
+ $Id: ecmh.h,v 1.10 2005/02/09 17:58:06 fuzzel Exp $
+ $Date: 2005/02/09 17:58:06 $
 **************************************/
 
 #include <sys/types.h>
@@ -87,13 +87,23 @@
 /* Our configuration structure */
 struct conf
 {
-	int			maxgroups;
-	struct list		*ints;				/* The interfaces we are watching */
+	unsigned int		maxgroups;
+	unsigned int		maxinterfaces;			/* The max number of interfaces the array can hold */
+	struct intnode		*ints;				/* The interfaces we are watching */
 	struct list		*groups;			/* The groups we are joined to */
+
+	char			*upstream;			/* Upstream interface */
+	unsigned int		upstream_id;			/* Interface ID of upstream interface */
 
 	bool			daemonize;			/* To Daemonize or to not to Daemonize */
 	bool			verbose;			/* Verbose Operation ? */
 	bool			quit;				/* Global Quit signal */
+#ifdef ECMH_SUPPORT_MLD2
+	bool			mld1only;			/* Only MLDv1 ? */
+	bool			mld2only;			/* Only MLDv2 ? */
+#endif
+	bool			promisc;			/* Make interfaces promisc? (To be sure to receive all MLD's) */
+	
 	uint8_t			*buffer;			/* Our buffer */
 	unsigned int		bufferlen;			/* Length of the buffer */
 
@@ -119,6 +129,4 @@ struct conf
 
 /* Global Stuff */
 extern struct conf *g_conf;
-
-void mld_send_report(struct intnode *intn, const struct in6_addr *mca);
 

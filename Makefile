@@ -3,8 +3,8 @@
 #  by Jeroen Massar <jeroen@unfix.org>
 # ***************************************
 # $Author: fuzzel $
-# $Id: Makefile,v 1.17 2004/10/10 11:50:50 fuzzel Exp $
-# $Date: 2004/10/10 11:50:50 $
+# $Id: Makefile,v 1.18 2005/02/09 17:58:06 fuzzel Exp $
+# $Date: 2005/02/09 17:58:06 $
 # **************************************/
 #
 # Toplevel Makefile allowing easy distribution.
@@ -16,7 +16,7 @@
 ECMH=ecmh
 
 # The version of this release
-ECMH_VERSION=2004.10.10
+ECMH_VERSION=2005.02.09
 export ECMH_VERSION
 
 # ECMH Compile Time Options
@@ -29,7 +29,7 @@ export ECMH_VERSION
 # Enable MLDv2 Support : -DECMH_SUPPORT_MLD2
 # GetIfAddr Support    : -DECMH_GETIFADDR
 # BPF Support (BSD)    : _DECMH_BPF
-ECMH_OPTIONS=-O9 -DECMH_SUPPORT_MLD2 -DECMH_GETIFADDR
+ECMH_OPTIONS=-DECMH_SUPPORT_MLD2 -DECMH_GETIFADDR -DDEBUG
 
 # Not Linux? -> Enable BPF Mode
 ifeq ($(shell uname | grep -c "Linux"),0)
@@ -48,12 +48,17 @@ endif
 MAKEFLAGS += --no-print-directory
 
 # Misc bins, making it easy to quiet them :)
+CC=gcc
 RM=@rm -f
 MV=@mv
 MAKE:=@${MAKE}
 CP=@echo [Copy]; cp
 RPMBUILD=@echo [RPMBUILD]; rpmbuild
 RPMBUILD_SILENCE=>/dev/null 2>/dev/null
+
+export CC
+export MAKE
+export RM
 
 # Configure a default RPMDIR
 ifeq ($(shell echo "${RPMDIR}/" | grep -c "/"),1)

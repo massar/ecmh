@@ -2,13 +2,13 @@
  ecmh - Easy Cast du Multi Hub - Common Functions
 ******************************************************
  $Author: fuzzel $
- $Id: common.c,v 1.2 2004/10/07 09:28:21 fuzzel Exp $
- $Date: 2004/10/07 09:28:21 $
+ $Id: common.c,v 1.3 2005/02/09 17:58:06 fuzzel Exp $
+ $Date: 2005/02/09 17:58:06 $
 *****************************************************/
 
 #include "ecmh.h"
 
-void dolog(int level, char *fmt, ...)
+void dolog(int level, const char *fmt, ...)
 {
 	va_list ap;
 	if (g_conf && !g_conf->verbose && level == LOG_DEBUG) return;
@@ -53,7 +53,8 @@ void savepid()
 
 void cleanpid(int i)
 {
-	dolog(LOG_INFO, "Trying to exit...\n");
+	dolog(LOG_INFO, "Trying to exit, got signal %d...\n", i);
 	unlink(PIDFILE);
 	g_conf->quit = true;
 }
+

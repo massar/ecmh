@@ -14,7 +14,7 @@ Description: Multicast Routing Daemon
  aggregates multicast packets from/to network interfaces.
  .
  Currently it supports IPv6 Multicast using MLDv1 and MLDv2 including
- Source Specific Multicast (SSM)
+ Source Specific Multicast (SSM).
  .
  It is used by SixXS (http://www.sixxs.net) to enable the users to
  send and receive Multicast IPv6 over IPv6 tunnels provided by SixXS.

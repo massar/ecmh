@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: grpint.c,v 1.6 2004/10/07 09:28:21 fuzzel Exp $
- $Date: 2004/10/07 09:28:21 $
+ $Id: grpint.c,v 1.7 2005/02/09 17:58:06 fuzzel Exp $
+ $Date: 2005/02/09 17:58:06 $
 **************************************/
 
 #include "ecmh.h"
@@ -16,7 +16,7 @@ struct grpintnode *grpint_create(const struct intnode *interface)
 	if (!grpintn) return NULL;
 
 	/* Fill her in */
-	grpintn->interface = (struct intnode *)interface;
+	grpintn->ifindex = interface->ifindex;
 
 	/* Setup the list */
 	grpintn->subscriptions = list_new();
@@ -29,8 +29,6 @@ struct grpintnode *grpint_create(const struct intnode *interface)
 void grpint_destroy(struct grpintnode *grpintn)
 {
 	if (!grpintn) return;
-
-	D(dolog(LOG_DEBUG, "Destroying grpint for device %s\n", grpintn->interface->name);)
 
 	/* Empty the subscriber list */
 	list_delete_all_node(grpintn->subscriptions);
@@ -46,7 +44,7 @@ struct grpintnode *grpint_find(const struct list *list, const struct intnode *in
 
 	LIST_LOOP(list, grpintn, ln)
 	{
-		if (grpintn->interface == interface) return grpintn;
+		if (grpintn->ifindex == interface->ifindex) return grpintn;
 	}
 	return NULL;
 }
@@ -57,12 +55,24 @@ struct grpintnode *grpint_find(const struct list *list, const struct intnode *in
  *		  ff3x::/96  : The source IPv6 address that wants to (not) receive this S<->G channel
  * mode		= MLD2_MODE_IS_INCLUDE/MLD2_MODE_IS_EXCLUDE
  */
-bool grpint_refresh(struct grpintnode *grpintn, const struct in6_addr *ipv6, int mode)
+bool grpint_refresh(struct grpintnode *grpintn, const struct in6_addr *ipv6, unsigned int mode)
 {
 	struct subscrnode *subscrn;
 
 	/* Find our beloved group */
 	subscrn = subscr_find(grpintn->subscriptions, ipv6);
+
+	/* Exclude all ? -> Unsubscribe */
+	if (	mode == MLD2_MODE_IS_EXCLUDE &&
+		IN6_IS_ADDR_UNSPECIFIED(ipv6))
+	{
+		/*
+		 * Don't refresh the subscription,
+		 * causing it to be removed later on
+		 * because of a timeout
+		 */
+		return true;
+	}
 
 	if (!subscrn)
 	{
@@ -78,9 +88,17 @@ bool grpint_refresh(struct grpintnode *grpintn, const struct in6_addr *ipv6, int
 
 	if (!subscrn) return false;
 
+	/* Mode still the same? */
+	if (mode != subscrn->mode)
+	{
+		dolog(LOG_DEBUG, "grpint_refresh() - Mode changed from %u to %u\n", subscrn->mode, mode);
+		subscrn->mode = mode;
+	}
+
 	/* Refresh it */
 	subscrn->refreshtime = time(NULL);
 
 	/* All Okay */
 	return true;
 }
+
