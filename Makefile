@@ -3,8 +3,8 @@
 #  by Jeroen Massar <jeroen@unfix.org>
 # ***************************************
 # $Author: fuzzel $
-# $Id: Makefile,v 1.12 2004/10/07 12:21:47 fuzzel Exp $
-# $Date: 2004/10/07 12:21:47 $
+# $Id: Makefile,v 1.13 2004/10/08 13:45:32 fuzzel Exp $
+# $Date: 2004/10/08 13:45:32 $
 # **************************************/
 #
 # Toplevel Makefile allowing easy distribution.
@@ -16,7 +16,7 @@
 ECMH=ecmh
 
 # The version of this release
-ECMH_VERSION=2004.10.07
+ECMH_VERSION=2004.10.08
 export ECMH_VERSION
 
 # ECMH Compile Time Options

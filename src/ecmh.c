@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.c,v 1.12 2004/10/07 12:46:26 fuzzel Exp $
- $Date: 2004/10/07 12:46:26 $
+ $Id: ecmh.c,v 1.13 2004/10/08 13:45:33 fuzzel Exp $
+ $Date: 2004/10/08 13:45:33 $
 ***************************************
  
    Docs:
@@ -674,6 +674,7 @@ void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 			}
 
 			/* Copy the address into the packet */
+			/* Hmmm... not implemented completely yet.... */
 		}
 		
 		/* Fixup the number of addresses */
@@ -1866,7 +1867,7 @@ void sigusr1(int i)
 void send_mld_querys()
 {
 	struct intnode		*intn;
-	struct listnode		*ln;
+	struct listnode		*ln, *ln2;
 	struct in6_addr		any;
 
 	dolog(LOG_DEBUG, "Sending MLD Queries\n");
@@ -1875,7 +1876,8 @@ void send_mld_querys()
 	memset(&any,0,sizeof(any));
 
 	/* Send MLD query's */
-	LIST_LOOP(g_conf->ints, intn, ln)
+	/* Use listloop2 as the node can disappear in sendpacket() */
+	LIST_LOOP2(g_conf->ints, intn, ln, ln2)
 	{
 #ifndef ECMH_SUPPORT_MLD2
 		mld_send_query(intn, &any, NULL);
@@ -1883,6 +1885,7 @@ void send_mld_querys()
 		mld_send_query(intn, &any, NULL, false);
 #endif
 	}
+	LIST_LOOP2_END
 
 	dolog(LOG_DEBUG, "Sending MLD Queries - done\n");
 }
