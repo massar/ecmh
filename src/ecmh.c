@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.c,v 1.6 2004/02/16 13:05:20 fuzzel Exp $
- $Date: 2004/02/16 13:05:20 $
+ $Id: ecmh.c,v 1.7 2004/02/17 00:22:29 fuzzel Exp $
+ $Date: 2004/02/17 00:22:29 $
 **************************************/
 //
 // Docs to check:
@@ -19,7 +19,6 @@
 //	http://www.ietf.org/internet-drafts/draft-holbrook-idmr-igmpv3-ssm-05.txt
 //		Using IGMPv3 and MLDv2 For Source-Specific Multicast
 //
-// - No more listeners on a link -> Query first, after that delete it.
 // - Protocol Robustness, send twice first with S flag, second without.
 // - Querier Election support (MLDv2 7.6.2 + 7.1)
 //
@@ -139,7 +138,7 @@ uint16_t ipv6_checksum(const struct ip6_hdr *ip6, uint8_t protocol, const void *
    and both MLDv1 and MLDv2 hosts will understand it.
    MLDv2 hosts will return a MLDv2 report, MLDv1 hosts a MLDv1 report
 */
-void mld_send_query(struct intnode *intn)
+void mld_send_query(struct intnode *intn, const struct in6_addr *mca)
 {
 	struct mld_query_packet
 	{
@@ -193,6 +192,11 @@ void mld_send_query(struct intnode *intn)
 	// ICMPv6 MLD Query
 	packet.mldq.type		= ICMP6_MEMBERSHIP_QUERY;
 	packet.mldq.mrc			= htons(2000);
+
+	// The address to query, can be in6addr_any to
+	// query for everything or a specific group 
+	memcpy(&packet.mldq.mca, mca, sizeof(*mca));
+
 #ifdef ECMH_SUPPORT_MLD2
 	packet.mldq.nsrcs		= 0;
 #endif
@@ -427,7 +431,7 @@ void l4_ipv4_proto41(struct intnode *intn, struct ip *iph, const uint8_t *packet
 void l3_ipv4(struct intnode *intn, const uint8_t *packet, const uint16_t len)
 {
 	struct ip *iph;
-D(	char src[16], dst[16];)
+D(	char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];)
 
 	// Ignore IPv4 ;)
 	return;
@@ -470,9 +474,9 @@ D(
 
 void mld_warning(char *fmt, struct in6_addr *i_mca, const struct intnode *intn)
 {
-	char mca[60];
+	char mca[INET6_ADDRSTRLEN];
 	memset(mca,0,sizeof(mca));
-	inet_ntop(AF_INET6, i_mca, mca, sizeof(*i_mca));
+	inet_ntop(AF_INET6, i_mca, mca, sizeof(mca));
 	dolog(LOG_WARNING, fmt, mca, intn->name);
 }
 
@@ -480,6 +484,12 @@ void l4_ipv6_icmpv6_mld1_report(struct intnode *intn, const struct ip6_hdr *iph,
 {
 	struct grpintnode	*grpintn;
 	struct in6_addr		any;
+
+	// We have received a MLDv1 report, thus note this
+	// interface as having a MLDv1 listener
+	int_set_mld_version(intn, 1);
+
+	D(dolog(LOG_DEBUG, "Received a ICMPv6 MLDv1 Report on %s\n", intn->name);)
 
 	// Ignore groups:
 	// - non multicast 
@@ -489,16 +499,6 @@ void l4_ipv6_icmpv6_mld1_report(struct intnode *intn, const struct ip6_hdr *iph,
 	if (	!IN6_IS_ADDR_MULTICAST(&mld1->mca) ||
 		IN6_IS_ADDR_MC_NODELOCAL(&mld1->mca) ||
 		IN6_IS_ADDR_MC_LINKLOCAL(&mld1->mca)) return;
-
-	// We have received a MLDv1 report, thus note this
-	// interface as having a MLDv1 listener
-	int_set_mld_version(intn, 1);
-
-	if (!IN6_ARE_ADDR_EQUAL(&iph->ip6_dst, &mld1->mca))
-	{
-		mld_warning("Ignoring MLDv1 Report for %s on interface %s\n", &mld1->mca, intn);
-		return;
-	}
 
 	// Find the grpintnode or create it
 	grpintn = groupint_get(&mld1->mca, intn);
@@ -527,24 +527,19 @@ void l4_ipv6_icmpv6_mld1_reduction(struct intnode *intn, const struct ip6_hdr *i
 	struct subscrnode	*subscrn;
 	struct in6_addr		any;
 
+	// We have received a MLDv1 reduction, thus note this
+	// interface as having a MLDv1 listener
+	int_set_mld_version(intn, 1);
+
+	D(dolog(LOG_DEBUG, "Received a ICMPv6 MLDv1 Reduction on %s\n", intn->name);)
+
 	// Ignore groups:
 	// - non multicast 
 	// - node local multicast addresses
 	// - link local multicast addresses
-	// - multicast destination mismatch with ipv6 destination
 	if (	!IN6_IS_ADDR_MULTICAST(&mld1->mca) ||
 		IN6_IS_ADDR_MC_NODELOCAL(&mld1->mca) ||
 		IN6_IS_ADDR_MC_LINKLOCAL(&mld1->mca)) return;
-
-	if (!IN6_ARE_ADDR_EQUAL(&iph->ip6_dst, &mld1->mca))
-	{
-		mld_warning("Ignoring MLDv1 Reduction for %s on interface %s\n", &mld1->mca, intn);
-		return;
-	}
-
-	// We have received a MLDv1 reduction, thus note this
-	// interface as having a MLDv1 listener
-	int_set_mld_version(intn, 1);
 
 	// Find the groupnode
 	groupn = group_find(&mld1->mca);
@@ -570,6 +565,10 @@ void l4_ipv6_icmpv6_mld1_reduction(struct intnode *intn, const struct ip6_hdr *i
 		mld_warning("Couldn't unsubscribe from %s interface %s\n", &mld1->mca, intn);
 		return;
 	}
+	
+	// Requery if the list is suddenly empty, as it will timeout otherwise.
+	D(mld_warning("Querying for other listeners of %s on interface %s\n", &mld1->mca, intn);)
+	mld_send_query(intn, &mld1->mca);
 
 	return;
 }
@@ -577,7 +576,7 @@ void l4_ipv6_icmpv6_mld1_reduction(struct intnode *intn, const struct ip6_hdr *i
 #ifdef ECMH_SUPPORT_MLD2
 void l4_ipv6_icmpv6_mld2_report(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t len, struct mld2_report *mld2r, const uint16_t plen)
 {
-	char			mca[60], srct[60];
+	char			mca[INET6_ADDRSTRLEN], srct[INET6_ADDRSTRLEN];
 	struct grpintnode	*grpintn = NULL;
 	struct in6_addr		*src;
 	struct mld2_grec	*grec = ((void *)mld2r) + sizeof(*mld2r);
@@ -587,6 +586,8 @@ void l4_ipv6_icmpv6_mld2_report(struct intnode *intn, const struct ip6_hdr *iph,
 	// We have received a MLDv2 report, thus note this
 	// interface as having a MLDv2 listener, unless it has detected MLDv1 listeners already...
 	int_set_mld_version(intn, 2);
+
+	D(dolog(LOG_DEBUG, "Received a ICMPv6 MLDv2 Report on %s\n", intn->name);)
 
 	// Zero out just in case
 	mca[0] = srct[0] = 0;
@@ -643,6 +644,8 @@ void l4_ipv6_icmpv6_mld_query(struct intnode *intn, const struct ip6_hdr *iph, c
 	struct grpintnode	*grpintn;
 	struct listnode		*gn;
 
+	D(dolog(LOG_DEBUG, "Received a ICMPv6 MLD Query on %s\n", intn->name);)
+	
 	// It's MLDv1 when the packet has the size of an MLDv1 packet
 	if (plen == sizeof(struct mld1)) int_set_mld_version(intn, 1);
 	// It is MLDv2 (or up) when it has anything else
@@ -695,9 +698,6 @@ void l4_ipv6_multicast(struct intnode *intn, const struct ip6_hdr *iph, const ui
 	struct subscrnode	*subscrn;
 	struct listnode		*in, *in2;
 
-	// DEBUG
-	char			src[60], dst[60];
-
 	// Don't route multicast packets that:
 	// - src = multicast
 	// - src = unspecified
@@ -711,20 +711,24 @@ void l4_ipv6_multicast(struct intnode *intn, const struct ip6_hdr *iph, const ui
 		IN6_IS_ADDR_LINKLOCAL(&iph->ip6_src) ||
 		IN6_IS_ADDR_MC_NODELOCAL(&iph->ip6_dst) ||
 		IN6_IS_ADDR_MC_LINKLOCAL(&iph->ip6_dst)) return;
-
-	// DEBUG: The addresses for printing
+/*
+D(
+	{
+	char			src[INET6_ADDRSTRLEN];
+	char			dst[INET6_ADDRSTRLEN];
 	inet_ntop(AF_INET6, &iph->ip6_src, src, sizeof(src));
 	inet_ntop(AF_INET6, &iph->ip6_dst, dst, sizeof(dst));
-
-	//D(dolog(LOG_DEBUG, "%5s L3:IPv6: IPv%0x %40s %40s %4u %d\n", intn->name, (int)((iph->ip6_vfc>>4)&0x0f), src, dst, ntohs(iph->ip6_plen), iph->ip6_nxt);)
-
+	dolog(LOG_DEBUG, "%5s L3:IPv6: IPv%0x %40s %40s %4u %d\n", intn->name, (int)((iph->ip6_vfc>>4)&0x0f), src, dst, ntohs(iph->ip6_plen), iph->ip6_nxt);
+	}
+)
+*/
 	// Find the group belonging to this multicast destination
 	groupn = group_find(&iph->ip6_dst);
-	
+
 	if (!groupn)
 	{
-		// DEBUG
-		D(dolog(LOG_DEBUG, "No subscriptions for %s (sent by %s)\n",  dst, src);)
+		// DEBUG - Causes heavy debug output - thus disabled even for debugging
+		//D(dolog(LOG_DEBUG, "No subscriptions for %s (sent by %s)\n",  dst, src);)
 		return;
 	}
 
@@ -772,13 +776,6 @@ void l4_ipv6_icmpv6(struct intnode *intn, const struct ip6_hdr *iph, const uint1
 	g_conf->stat_icmp_received++;
 	intn->stat_icmp_received++;
 
-	// MLD's have to be from Link Local addresses
-	if (	IN6_IS_ADDR_MC_LINKLOCAL(&iph->ip6_src) &&
-		icmpv6->icmp6_type != ICMP6_ECHO_REQUEST)
-	{
-		return;
-	}
-
 	// We are only interrested in these types
 	// Saves on calculating a checksum and then ignoring it anyways
 	if (	icmpv6->icmp6_type != ICMP6_MEMBERSHIP_REPORT &&
@@ -787,6 +784,7 @@ void l4_ipv6_icmpv6(struct intnode *intn, const struct ip6_hdr *iph, const uint1
 		icmpv6->icmp6_type != ICMP6_MEMBERSHIP_QUERY &&
 		icmpv6->icmp6_type != ICMP6_ECHO_REQUEST)
 	{
+		D(dolog(LOG_DEBUG, "Ignoring ICMPv6 typed %d\n", icmpv6->icmp6_type);)
 		return;
 	}
 
@@ -811,30 +809,43 @@ void l4_ipv6_icmpv6(struct intnode *intn, const struct ip6_hdr *iph, const uint1
 			icmpv6->icmp6_cksum, csum);
 	}
 
-	if (icmpv6->icmp6_type == ICMP6_MEMBERSHIP_REPORT)
-	{
-		l4_ipv6_icmpv6_mld1_report(intn, iph, len, (struct mld1 *)icmpv6, plen);
-	}
-	else if (icmpv6->icmp6_type == ICMP6_MEMBERSHIP_REDUCTION)
-	{
-		l4_ipv6_icmpv6_mld1_reduction(intn, iph, len, (struct mld1 *)icmpv6, plen);
-	}
-// We simply ignore it if we don't support it ;)
-#ifdef ECMH_SUPPORT_MLD2
-	else if (icmpv6->icmp6_type == ICMP6_V2_MEMBERSHIP_REPORT)
-	{
-		l4_ipv6_icmpv6_mld2_report(intn, iph, len, (struct mld2_report *)icmpv6, plen);
-	}
-#endif // ECMH_SUPPORT_MLD2
-	else if (icmpv6->icmp6_type == ICMP6_MEMBERSHIP_QUERY)
-	{
-		l4_ipv6_icmpv6_mld_query(intn, iph, len, (struct mld2_query *)icmpv6, plen);
-	}
-	else if (icmpv6->icmp6_type == ICMP6_ECHO_REQUEST)
+	if (icmpv6->icmp6_type == ICMP6_ECHO_REQUEST)
 	{
 		// We redistribute IPv6 ICMPv6 Echo Requests to the subscribers
 		// This allows hosts to ping a IPv6 Multicast address and see who is listening ;)
 		l4_ipv6_multicast(intn, iph, len);
+	}
+	else
+	{
+		if (!(IN6_IS_ADDR_LINKLOCAL(&iph->ip6_src)))
+		{
+			char addr[INET6_ADDRSTRLEN];
+			memset(addr,0,sizeof(addr));
+			inet_ntop(AF_INET6, &iph->ip6_src, addr, sizeof(addr));
+			dolog(LOG_WARNING, "Ignoring non-LinkLocal MLD from %s received from %s\n", addr, intn->name);
+			return;
+		}
+
+		if (icmpv6->icmp6_type == ICMP6_MEMBERSHIP_REPORT)
+		{
+			l4_ipv6_icmpv6_mld1_report(intn, iph, len, (struct mld1 *)icmpv6, plen);
+		}
+		else if (icmpv6->icmp6_type == ICMP6_MEMBERSHIP_REDUCTION)
+		{
+			l4_ipv6_icmpv6_mld1_reduction(intn, iph, len, (struct mld1 *)icmpv6, plen);
+		}
+	// We simply ignore it if we don't support it ;)
+	#ifdef ECMH_SUPPORT_MLD2
+		else if (icmpv6->icmp6_type == ICMP6_V2_MEMBERSHIP_REPORT)
+		{
+			l4_ipv6_icmpv6_mld2_report(intn, iph, len, (struct mld2_report *)icmpv6, plen);
+		}
+	#endif // ECMH_SUPPORT_MLD2
+		else if (icmpv6->icmp6_type == ICMP6_MEMBERSHIP_QUERY)
+		{
+			l4_ipv6_icmpv6_mld_query(intn, iph, len, (struct mld2_query *)icmpv6, plen);
+		}
+		D(else dolog(LOG_DEBUG, "ICMP type %d got through\n", icmpv6->icmp6_type);)
 	}
 	return;
 }
@@ -851,12 +862,10 @@ void l3_ipv6(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t len
 	struct subscrnode	*subscrn;
 	struct listnode		*in, *in2;
 
-	// Prefilter - ignore anything but:
-	// - source must be link-local
-	// OR
-	// - destination must be multicast
-	if (	!IN6_IS_ADDR_LINKLOCAL(&iph->ip6_src) &&
-		!IN6_IS_ADDR_MULTICAST(&iph->ip6_dst))
+	// Destination must be multicast
+	// We don't care about unicast destinations
+	// Those are handled by the OS itself.
+	if (!IN6_IS_ADDR_MULTICAST(&iph->ip6_dst))
 	{
 		return;
 	}
@@ -936,7 +945,7 @@ void update_interfaces(struct intnode *intn)
 	struct in6_addr	linklocal;
 	int		ifindex = 0, prefixlen, scope, flags;
 
-	D(dolog(LOG_DEBUG, "Updating Interfaces\n");)
+	D(dolog(LOG_DEBUG, "*** Updating Interfaces\n");)
 
 	// Get link local addresses from /proc/net/if_inet6
 	file = fopen("/proc/net/if_inet6", "r");
@@ -1051,7 +1060,7 @@ void sigusr1(int i)
 	struct subscrnode	*subscrn;
 	struct listnode		*ssn;
 	time_t			time_tee;
-	char			addr[60];
+	char			addr[INET6_ADDRSTRLEN];
 	int			subscriptions = 0;
 	int			uptime, uptime_s, uptime_m, uptime_h, uptime_d;
 	FILE			*out;
@@ -1114,7 +1123,7 @@ void sigusr1(int i)
 		fprintf(g_conf->stat_file, "  Link-local address : %s\n", addr);
 
 		if (intn->mld_version == 0)
-		fprintf(g_conf->stat_file, "  MLD version        : No query seen\n");
+		fprintf(g_conf->stat_file, "  MLD version        : none\n");
 		else
 		fprintf(g_conf->stat_file, "  MLD version        : v%d\n", intn->mld_version);
 
@@ -1132,7 +1141,7 @@ void sigusr1(int i)
 
 
 	// Dump out some generic program statistics
-	strftime(addr, sizeof(addr), "%F %T", gmtime(&g_conf->stat_starttime));
+	strftime(addr, sizeof(addr), "%Y-%m-%d %T", gmtime(&g_conf->stat_starttime));
 
 	fprintf(g_conf->stat_file, "*** Statistics Dump\n");
 	fprintf(g_conf->stat_file, "Version              : ecmh %s\n", ECMH_VERSION);
@@ -1164,13 +1173,17 @@ void send_mld_querys()
 {
 	struct intnode		*intn;
 	struct listnode		*ln;
+	struct in6_addr		any;
 
 	D(dolog(LOG_DEBUG, "*** Sending MLD Queries\n");)
+
+	// We want to know about all the groups
+	memset(&any,0,sizeof(any));
 
 	// Send MLD query's
 	LIST_LOOP(g_conf->ints, intn, ln)
 	{
-		mld_send_query(intn);
+		mld_send_query(intn, &any);
 	}
 
 	D(dolog(LOG_DEBUG, "*** Sending MLD Queries - done\n");)
@@ -1179,11 +1192,11 @@ void send_mld_querys()
 void timeout()
 {
 	struct groupnode	*groupn;
-	struct listnode		*ln;
+	struct listnode		*ln, *ln2;
 	struct grpintnode	*grpintn;
-	struct listnode		*gn;
+	struct listnode		*gn, *gn2;
 	struct subscrnode	*subscrn;
-	struct listnode		*ssn;
+	struct listnode		*ssn, *ssn2;
 	time_t			time_tee;
 
 	D(dolog(LOG_DEBUG, "*** Timeout\n");)
@@ -1195,18 +1208,18 @@ void timeout()
 	time_tee = time(NULL);
 
 	// Timeout all the groups that didn't refresh yet
-	LIST_LOOP(g_conf->groups, groupn, ln)
+	LIST_LOOP2(g_conf->groups, groupn, ln, ln2)
 	{
-		LIST_LOOP(groupn->interfaces, grpintn, gn)
+		LIST_LOOP2(groupn->interfaces, grpintn, gn, gn2)
 		{
-			LIST_LOOP(grpintn->subscriptions, subscrn, ssn)
+			LIST_LOOP2(grpintn->subscriptions, subscrn, ssn, ssn2)
 			{
 				// Calculate the difference
 				int i = time_tee - subscrn->refreshtime;
 				if (i < 0) i = -i;
-			
+				
 				// Dead too long?
-				if (i > (ECMH_SUBSCRIPTION_TIMEOUT))
+				if (i > (ECMH_SUBSCRIPTION_TIMEOUT*2))
 				{
 					// Dead too long -> delete it
 					list_delete_node(grpintn->subscriptions, ssn);
@@ -1214,6 +1227,7 @@ void timeout()
 					subscr_destroy(subscrn);
 				}
 			}
+			LIST_LOOP2_END
 		
 			if (grpintn->subscriptions->count == 0)
 			{
@@ -1223,6 +1237,7 @@ void timeout()
 				grpint_destroy(grpintn);
 			}
 		}
+		LIST_LOOP2_END
 
 		if (groupn->interfaces->count == 0)
 		{
@@ -1232,6 +1247,7 @@ void timeout()
 			group_destroy(groupn);
 		}
 	}
+	LIST_LOOP2_END
 
 	// Send out MLD queries
 	send_mld_querys();
@@ -1278,7 +1294,7 @@ int main(int argc, char *argv[], char *envp[])
 			break;
 
 		case 'f':
-			g_conf->daemonize = true;
+			g_conf->daemonize = false;
 			break;
 
 		case 'u':
@@ -1446,8 +1462,8 @@ int main(int argc, char *argv[], char *envp[])
 	dolog(LOG_INFO, "Shutdown, thank you for using ecmh\n");
 
 	// Cleanup the nodes
-	list_delete(g_conf->ints);
-	list_delete(g_conf->groups);
+	list_delete_all_node(g_conf->ints);
+	list_delete_all_node(g_conf->groups);
 
 	// Close files and sockets
 	fclose(g_conf->stat_file);

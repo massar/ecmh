@@ -1,3 +1,18 @@
+ecmh (2004.01.17-1) unstable; urgency=low
+
+  * Releasing as 2004.01.17.
+  * More debugging.
+  * Hopefully finally fixed lists and thus timeouts.
+  * Using LIST_LOOP2() when deleting inside a loop.
+  * Reductions to 0 cause an immediate MLD Query to be
+    sent for only that specific group.
+  * inet_ntop() argument fixes and using INET[6]_ADDRSTRLEN now.
+  * -f argument fix, correctly setting it to false instead of true.
+  * Set ECMH_SUBSCRIPTION_TIMEOUT to 125 per MLDv2 section 9.2.
+  * Using list_delete_all_node(). instead of list_delete().
+
+ -- Jeroen Massar <jeroen@unfix.org>  Sun, 17 Feb 2004 01:18:00 +0100
+
 ecmh (2004.01.16-1) unstable; urgency=low
 
   * Fixed timing issues

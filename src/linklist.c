@@ -244,8 +244,8 @@ void list_movefront_node(struct list *list, struct listnode *node)
 	// Insert it at the front
 	if (list->head)
 	{
-		list->head->prev = node;
 		node->prev = list->head->prev;
+		list->head->prev = node;
 	}
 	node->next = list->head;
 	list->head = node;

@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: grpint.c,v 1.4 2004/02/16 01:05:31 fuzzel Exp $
- $Date: 2004/02/16 01:05:31 $
+ $Id: grpint.c,v 1.5 2004/02/17 00:22:29 fuzzel Exp $
+ $Date: 2004/02/17 00:22:29 $
 **************************************/
 
 #include "ecmh.h"
@@ -30,8 +30,10 @@ void grpint_destroy(struct grpintnode *grpintn)
 {
 	if (!grpintn) return;
 
+	D(dolog(LOG_DEBUG, "Destroying grpint for device %s\n", grpintn->interface->name);)
+
 	// Empty the subscriber list
-	list_delete(grpintn->subscriptions);
+	list_delete_all_node(grpintn->subscriptions);
 
 	// Free the node
 	free(grpintn);

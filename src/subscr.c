@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: subscr.c,v 1.4 2004/02/16 01:05:31 fuzzel Exp $
- $Date: 2004/02/16 01:05:31 $
+ $Id: subscr.c,v 1.5 2004/02/17 00:22:29 fuzzel Exp $
+ $Date: 2004/02/17 00:22:29 $
 **************************************/
 
 #include "ecmh.h"
@@ -28,6 +28,16 @@ struct subscrnode *subscr_create(const struct in6_addr *ipv6, int mode)
 void subscr_destroy(struct subscrnode *subscrn)
 {
 	if (!subscrn) return;
+
+D(
+	{
+		char addr[INET6_ADDRSTRLEN];
+		memset(addr,0,sizeof(addr));
+		inet_ntop(AF_INET6, &subscrn->ipv6, addr, sizeof(addr));
+		dolog(LOG_DEBUG, "Destroying subscription %s\n", addr);
+	}
+)
+
 	// Free the node
 	free(subscrn);
 }

@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: groups.c,v 1.4 2004/02/16 13:05:20 fuzzel Exp $
- $Date: 2004/02/16 13:05:20 $
+ $Id: groups.c,v 1.5 2004/02/17 00:22:29 fuzzel Exp $
+ $Date: 2004/02/17 00:22:29 $
 **************************************/
 
 #include "ecmh.h"
@@ -23,6 +23,15 @@ struct groupnode *group_create(const struct in6_addr *mca)
 	groupn->interfaces = list_new();
 	groupn->interfaces->del = (void(*)(void *))grpint_destroy;
 
+D(
+	{
+		char mca_txt[INET6_ADDRSTRLEN];
+		memset(mca_txt,0,sizeof(mca_txt));
+		inet_ntop(AF_INET6, mca, mca_txt, sizeof(mca_txt));
+		dolog(LOG_WARNING, "Created group %s\n", mca_txt);
+	}
+)
+
 	// All okay
 	return groupn;
 }
@@ -31,8 +40,17 @@ void group_destroy(struct groupnode *groupn)
 {
 	if (!groupn) return;
 
+D(
+	{
+		char mca_txt[INET6_ADDRSTRLEN];
+		memset(mca_txt,0,sizeof(mca_txt));
+		inet_ntop(AF_INET6, &groupn->mca, mca_txt, sizeof(mca_txt));
+		dolog(LOG_DEBUG, "Destroying group %s\n", mca_txt);
+	}
+)
+
 	// Empty the subscriber list
-	list_delete(groupn->interfaces);
+	list_delete_all_node(groupn->interfaces);
 
 	// Free the node
 	free(groupn);
@@ -76,7 +94,7 @@ struct grpintnode *groupint_get(const struct in6_addr *mca, struct intnode *inte
 	}
 
 	// Forward it if we haven't done so for quite some time
-	else if ((time(NULL) - groupn->lastforward) > ECMH_SUBSCRIPTION_TIMEOUT)
+	else if ((time(NULL) - groupn->lastforward) >= ECMH_SUBSCRIPTION_TIMEOUT)
 	{
 		D(dolog(LOG_DEBUG, "Last update was %d seconds ago -> resending\n", (int)(time(NULL) - groupn->lastforward));)
 		forward = true;

@@ -3,15 +3,15 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: interfaces.c,v 1.5 2004/02/16 13:05:20 fuzzel Exp $
- $Date: 2004/02/16 13:05:20 $
+ $Id: interfaces.c,v 1.6 2004/02/17 00:22:29 fuzzel Exp $
+ $Date: 2004/02/17 00:22:29 $
 **************************************/
 
 #include "ecmh.h"
 
 void int_add(struct intnode *intn)
 {
-	char ll[60];
+	char ll[INET6_ADDRSTRLEN];
 	listnode_add(g_conf->ints, intn);
 
 	inet_ntop(AF_INET6, &intn->linklocal, ll, sizeof(ll));
@@ -80,6 +80,7 @@ void int_destroy(struct intnode *intn)
 {
 	if (!intn) return;
 
+D(	dolog(LOG_DEBUG, "Destroying interface %s\n", intn->name);)
 	free(intn);
 	return;
 }
@@ -121,7 +122,7 @@ void int_set_mld_version(struct intnode *intn, int newversion)
 		{
 			D(
 			if (intn->mld_version == 2) dolog(LOG_DEBUG, "MLDv1 Query detected on %5s, downgrading from MLDv2 to MLDv1\n", intn->name);
-			else dolog(LOG_DEBUG, "MLDv1 Query detected on %5s, setting it to MLDv1\n", intn->name);
+			else dolog(LOG_DEBUG, "MLDv1 detected on %s, setting it to MLDv1\n", intn->name);
 			)
 			intn->mld_version = 1;
 		}
@@ -134,7 +135,7 @@ void int_set_mld_version(struct intnode *intn, int newversion)
 			intn->mld_version != 1 &&
 			intn->mld_version != 2)
 		{
-			D(dolog(LOG_DEBUG, "MLDv2 Query detected on %5s, setting it to MLDv2\n", intn->name);)
+			D(dolog(LOG_DEBUG, "MLDv2 detected on %s, setting it to MLDv2\n", intn->name);)
 			intn->mld_version = 2;
 		}
 	}

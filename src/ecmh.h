@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.h,v 1.5 2004/02/16 13:05:20 fuzzel Exp $
- $Date: 2004/02/16 13:05:20 $
+ $Id: ecmh.h,v 1.6 2004/02/17 00:22:29 fuzzel Exp $
+ $Date: 2004/02/17 00:22:29 $
 **************************************/
 
 #define _XOPEN_SOURCE
@@ -55,8 +55,9 @@
 #define D(x) {}
 #endif
 
-// The timeout for joins, verify with draft - every 5 minutes
-#define ECMH_SUBSCRIPTION_TIMEOUT (5*60)
+// The timeout for queries
+// as per MLDv2 "9.2.  Query Interval"
+#define ECMH_SUBSCRIPTION_TIMEOUT 125
 
 #include "linklist.h"
 #include "common.h"

@@ -59,6 +59,16 @@ void list_movefront_node(struct list *, struct listnode *);
   for ((N) = (L)->head; (N); (N) = (N)->next) \
     if (((V) = (N)->data) != NULL)
 
+/* List iteration macro. */
+#define LIST_LOOP2(L,V,N,M) \
+  for ((M) = (L)->head; (M);) \
+  {\
+    (N) = (M); \
+    (M) = (N)->next; \
+    if (((V) = (N)->data) != NULL)
+
+#define LIST_LOOP2_END }
+
 /* List node add macro.  */
 #define LISTNODE_ADD(L,N) \
   do { \
