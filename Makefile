@@ -3,8 +3,8 @@
 #  by Jeroen Massar <jeroen@unfix.org>
 # ***************************************
 # $Author: fuzzel $
-# $Id: Makefile,v 1.10 2004/10/07 10:25:34 fuzzel Exp $
-# $Date: 2004/10/07 10:25:34 $
+# $Id: Makefile,v 1.11 2004/10/07 12:09:24 fuzzel Exp $
+# $Date: 2004/10/07 12:09:24 $
 # **************************************/
 #
 # Toplevel Makefile allowing easy distribution.
@@ -27,6 +27,8 @@ export ECMH_VERSION
 # Enable Debugging     : -DDEBUG
 # Enable IPv4 Support  : -DECMH_SUPPORT_IPV4
 # Enable MLDv2 Support : -DECMH_SUPPORT_MLD2
+# GetIfAddr Support    : -DECMH_GETIFADDR
+# BPF Support (BSD)    : _DECMH_BPF
 ECMH_OPTIONS=-O9 -DECMH_SUPPORT_MLD2 -DECMH_GETIFADDR
 
 # Not Linux? -> Enable BPF Mode
