@@ -1,6 +1,6 @@
-ecmh (2004.01.18-1) stable; urgency=low
+ecmh (2004.02.18-1) stable; urgency=low
 
-  * Releasing as 2004.01.18.
+  * Releasing as 2004.02.18.
   * Added TTL decrementing, streams must set their Hop Limit
     to something like the usual 64 hops otherwise they will
     be discarded, as it is multicast, we do not return errors.
@@ -20,9 +20,9 @@ ecmh (2004.01.18-1) stable; urgency=low
 
  -- Jeroen Massar <jeroen@unfix.org>  Tue, 17 Feb 2004 19:46:00 +0100
 
-ecmh (2004.01.17-1) unstable; urgency=low
+ecmh (2004.02.17-1) unstable; urgency=low
 
-  * Releasing as 2004.01.17.
+  * Releasing as 2004.02.17.
   * More debugging.
   * Hopefully finally fixed lists and thus timeouts.
   * Using LIST_LOOP2() when deleting inside a loop.
