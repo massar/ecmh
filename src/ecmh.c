@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.c,v 1.15 2004/10/08 17:38:06 fuzzel Exp $
- $Date: 2004/10/08 17:38:06 $
+ $Id: ecmh.c,v 1.16 2004/10/08 18:48:35 fuzzel Exp $
+ $Date: 2004/10/08 18:48:35 $
 ***************************************
  
    Docs:
@@ -769,13 +769,10 @@ void l4_ipv4_proto41(struct intnode *intn, struct ip *iph, const uint8_t *packet
 	}
 	if (!tun)
 	{
-		static int count = 0;
 	    	char buf[1024],buf2[1024];
 	    	inet_ntop(AF_INET, &iph->ip_src, (char *)&buf, sizeof(buf));
 	    	inet_ntop(AF_INET, &iph->ip_dst, (char *)&buf2, sizeof(buf));
 		dolog(LOG_ERR, "Couldn't find proto-41 tunnel %s->%s\n", buf, buf2);
-
-		if ((count++) == 15) exit(0);
 		return;
 	}
 
