@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.c,v 1.11 2004/10/07 12:08:00 fuzzel Exp $
- $Date: 2004/10/07 12:08:00 $
+ $Id: ecmh.c,v 1.12 2004/10/07 12:46:26 fuzzel Exp $
+ $Date: 2004/10/07 12:46:26 $
 ***************************************
  
    Docs:
@@ -1514,15 +1514,23 @@ void update_interfaces(struct intnode *intn)
 #endif
 
 			ifindex = if_nametoindex(ifa->ifa_name);
-			if (ifa->ifa_addr->sa_family == AF_INET6)
+			if (ifa->ifa_addr)
 			{
-				memcpy(&addr,
-					&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr, sizeof(addr));
+				if (ifa->ifa_addr->sa_family == AF_INET6)
+				{
+					memcpy(&addr,
+						&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr, sizeof(addr));
+				}
+				else
+				{
+					memcpy(&addr,
+						&((struct sockaddr_in *)ifa->ifa_addr)->sin_addr, sizeof(addr));
+				}
 			}
 			else
 			{
-				memcpy(&addr,
-					&((struct sockaddr_in *)ifa->ifa_addr)->sin_addr, sizeof(addr));
+				dolog(LOG_WARNING, "Interface %s/%u didn't have an address!? -> skipping\n", ifa->ifa_name, ifindex);
+				continue;
 			}
 #endif /* !ECMH_GETIFADDR */
 		/* Skip everything we don't care about */
