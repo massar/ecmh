@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: groups.c,v 1.2 2004/01/11 21:41:05 fuzzel Exp $
- $Date: 2004/01/11 21:41:05 $
+ $Id: groups.c,v 1.3 2004/02/15 19:51:06 fuzzel Exp $
+ $Date: 2004/02/15 19:51:06 $
 **************************************/
 
 #include "ecmh.h"
@@ -30,6 +30,10 @@ struct groupnode *group_create(const struct in6_addr *mca)
 void group_destroy(struct groupnode *groupn)
 {
 	if (!groupn) return;
+
+	// Empty the subscriber list
+	list_delete(groupn->interfaces);
+
 	// Free the node
 	free(groupn);
 }
@@ -88,9 +92,6 @@ struct grpintnode *groupint_get(const struct in6_addr *mca, struct intnode *inte
 
 			// Send the MLDv1 Report
 			mld_send_report(intn, mca);
-
-			// If it gets marked for being removed, do so
-			if (intn->removeme) listnode_delete(g_conf->ints, ln);
 		}
 		groupn->lastforward = time(NULL);
 	}

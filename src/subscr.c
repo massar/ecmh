@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: subscr.c,v 1.2 2004/01/11 21:41:05 fuzzel Exp $
- $Date: 2004/01/11 21:41:05 $
+ $Id: subscr.c,v 1.3 2004/02/15 19:51:06 fuzzel Exp $
+ $Date: 2004/02/15 19:51:06 $
 **************************************/
 
 #include "ecmh.h"
@@ -52,7 +52,10 @@ bool subscr_unsub(struct list *list, const struct in6_addr *ipv6)
 	{
 		if (IN6_ARE_ADDR_EQUAL(ipv6, &subscrn->ipv6))
 		{
-			listnode_delete(list, ln);
+			// Delete the entry from the list
+			list_delete_node(list, ln);
+			// Destroy the item itself
+			subscr_destroy(subscrn);
 			return true;
 		}
 	}

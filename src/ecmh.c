@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.c,v 1.2 2004/01/11 21:41:05 fuzzel Exp $
- $Date: 2004/01/11 21:41:05 $
+ $Id: ecmh.c,v 1.3 2004/02/15 19:51:06 fuzzel Exp $
+ $Date: 2004/02/15 19:51:06 $
 **************************************/
 //
 // Docs to check: netdevice(7), packet(7)
@@ -47,11 +47,17 @@ void sendpacket6(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t
 
 	// Resend the packet
 	errno = 0;
-	sent = sendto(g_conf->rawsocket_out, iph, len, 0, (struct sockaddr *)&sa, sizeof(sa));
+	sent = sendto(g_conf->rawsocket, iph, len, 0, (struct sockaddr *)&sa, sizeof(sa));
 	if (sent < 0)
 	{
 		// Remove the device if it doesn't exist anymore, can happen with dynamic tunnels etc
-		if (errno == ENXIO) intn->removeme = true;
+		if (errno == ENXIO)
+		{
+			// Delete from the list
+			listnode_delete(g_conf->ints, intn);
+			// Destroy the interface itself
+			int_destroy(intn);
+		}
 		else dolog(LOG_WARNING, "[%-5s] sending %d bytes failed, mtu = %d, %d: %s\n", intn->name, len, intn->mtu, errno, strerror(errno));
 		return;
 	}
@@ -112,6 +118,7 @@ uint16_t ipv6_checksum(const struct ip6_hdr *ip6, uint8_t protocol, const void *
 	return (uint16_t)chksum;
 }
 
+/* MLDv1 and MLDv2 are backward compatible when doing Queries */
 void mld_send_query(struct intnode *intn)
 {
 	struct mld_query_packet
@@ -171,7 +178,7 @@ void mld_send_query(struct intnode *intn)
 	sendpacket6(intn, (const struct ip6_hdr *)&packet, sizeof(packet));
 }
 
-void mld_send_report(struct intnode *intn, const struct in6_addr *mca)
+void mld1_send_report(struct intnode *intn, const struct in6_addr *mca)
 {
 	struct mld_query_packet
 	{
@@ -226,6 +233,69 @@ void mld_send_report(struct intnode *intn, const struct in6_addr *mca)
 	packet.mld1.csum		= ipv6_checksum(&packet.ip6, IPPROTO_ICMPV6, (uint8_t *)&packet.mld1, sizeof(packet.mld1));
 
 	sendpacket6(intn, (const struct ip6_hdr *)&packet, sizeof(packet));
+}
+
+void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
+{
+	struct mld_query_packet
+	{
+		struct ip6_hdr		ip6;
+		struct ip6_hbh		hbh;
+		struct
+		{
+			uint8_t		type;
+			uint8_t		length;
+			uint16_t	value;
+			uint8_t		optpad[2];
+		}			routeralert;
+		
+		struct mld1		mld1;
+		
+	} packet;
+	
+	memset(&packet, 0, sizeof(packet));
+
+	// Create the IPv6 packet
+	packet.ip6.ip6_vfc		= 0x60;
+	packet.ip6.ip6_plen		= ntohs(sizeof(packet) - sizeof(packet.ip6));
+	packet.ip6.ip6_nxt		= IPPROTO_HOPOPTS;
+	packet.ip6.ip6_hlim		= 1;
+	
+	// The source address must be the link-local address
+	// of the interface we are sending on
+	memcpy(&packet.ip6.ip6_src, &intn->linklocal, sizeof(packet.ip6.ip6_src));
+
+	// Report -> Multicast address
+	memcpy(&packet.ip6.ip6_dst, mca, sizeof(*mca));
+
+	// HopByHop Header Extension
+	packet.hbh.ip6h_nxt		= IPPROTO_ICMPV6;
+	packet.hbh.ip6h_len		= 0;
+	
+	// Router Alert Option
+	packet.routeralert.type		= 5;
+	packet.routeralert.length	= sizeof(packet.routeralert.value);
+	packet.routeralert.value	= 0;			// MLD ;)
+
+	// Option Padding
+	packet.routeralert.optpad[0]	= IP6OPT_PADN;
+	packet.routeralert.optpad[1]	= 0;
+
+	// ICMPv6 MLD Report
+	packet.mld1.type		= ICMP6_MEMBERSHIP_REPORT;
+	packet.mld1.mrc			= 0;
+	memcpy(&packet.mld1.mca, mca, sizeof(*mca));
+
+	// Calculate and fill in the checksum
+	packet.mld1.csum		= ipv6_checksum(&packet.ip6, IPPROTO_ICMPV6, (uint8_t *)&packet.mld1, sizeof(packet.mld1));
+
+	sendpacket6(intn, (const struct ip6_hdr *)&packet, sizeof(packet));
+}
+
+void mld_send_report(struct intnode *intn, const struct in6_addr *mca)
+{
+	if (intn->mld_version == 1) mld1_send_report(intn, mca);
+	else if (intn->mld_version == 2) mld2_send_report(intn, mca);
 }
 
 #ifdef ECMH_SUPPORT_IPV4
@@ -712,7 +782,7 @@ void update_interfaces(struct intnode *intn)
 		// Update everything
 		else
 		{
-			intn = int_find(ifindex);
+			intn = int_find(ifindex, false);
 			if (!intn)
 			{
 				intn = int_create(ifindex);
@@ -838,18 +908,13 @@ void sigusr1(int i)
 	// Timeout all the groups that didn't refresh yet
 	LIST_LOOP(g_conf->ints, intn, ln)
 	{
-		// If it is marked for being removed, do so
-		if (intn->removeme) listnode_delete(g_conf->ints, ln);
-		else
-		{
-			inet_ntop(AF_INET6, &intn->linklocal, addr, sizeof(addr));
-	
-			fprintf(g_conf->stat_file, "\n");
-			fprintf(g_conf->stat_file, "Interface: %s\n", intn->name);
-			fprintf(g_conf->stat_file, "  Index  : %d\n", intn->ifindex);
-			fprintf(g_conf->stat_file, "  MTU    : %d\n", intn->mtu);
-			fprintf(g_conf->stat_file, "  LL     : %s\n", addr);
-		}
+		inet_ntop(AF_INET6, &intn->linklocal, addr, sizeof(addr));
+
+		fprintf(g_conf->stat_file, "\n");
+		fprintf(g_conf->stat_file, "Interface: %s\n", intn->name);
+		fprintf(g_conf->stat_file, "  Index  : %d\n", intn->ifindex);
+		fprintf(g_conf->stat_file, "  MTU    : %d\n", intn->mtu);
+		fprintf(g_conf->stat_file, "  LL     : %s\n", addr);
 	}
 
 	fprintf(g_conf->stat_file, "\n");
@@ -887,14 +952,10 @@ void send_mld_querys()
 	
 	D(dolog(LOG_DEBUG, "*** Sending MLD Queries\n");)
 
-	// Send a MLD query's
+	// Send MLD query's
 	LIST_LOOP(g_conf->ints, intn, ln)
 	{
-		// Only send if it isn't marked for removal yet
-		if (!intn->removeme) mld_send_query(intn);
-		
-		// If it is marked for being removed, do so
-		if (intn->removeme) listnode_delete(g_conf->ints, ln);
+		mld_send_query(intn);
 	}
 
 	D(dolog(LOG_DEBUG, "*** Sending MLD Queries - done\n");)
@@ -933,21 +994,27 @@ void timeout()
 				if (i > (ECMH_SUBSCRIPTION_TIMEOUT))
 				{
 					// Dead too long -> delete it
-					listnode_delete(grpintn->subscriptions, ssn);
+					list_delete_node(grpintn->subscriptions, ssn);
+					// Destroy the subscription itself
+					subscr_destroy(subscrn);
 				}
 			}
 		
 			if (grpintn->subscriptions->count == 0)
 			{
-				// Destroy this groupint
-				listnode_delete(groupn->interfaces, gn);
+				// Delete from the list
+				list_delete_node(groupn->interfaces, gn);
+				// Destroy the grpint
+				grpint_destroy(grpintn);
 			}
 		}
 	
 		if (groupn->interfaces->count == 0)
 		{
-			// Destroy this group
-			listnode_delete(g_conf->groups, ln);
+			// Delete from the list
+			list_delete_node(g_conf->groups, ln);
+			// Destroy the group
+			group_destroy(groupn);
 		}
 	}
 
@@ -1077,18 +1144,8 @@ int main(int argc, char *argv[], char *envp[])
 
 	// Allocate a PACKET socket which can send and receive
 	//  anything we want (anything ???.... anythinggg... ;)
-	// We only want IPv6 packets, we don't want to see anything else
-	g_conf->rawsocket = socket(PF_PACKET, SOCK_DGRAM, htons(ETH_P_IPV6));
+	g_conf->rawsocket = socket(PF_PACKET, SOCK_DGRAM, htons(ETH_P_ALL));
 	if (g_conf->rawsocket < 0)
-	{
-		dolog(LOG_ERR, "Couldn't allocate a RAW socket\n");
-		return -1;
-	}
-
-	// Allocate a PACKET socket which can send and receive
-	//  anything we want (anything ???.... anythinggg... ;)
-	g_conf->rawsocket_out = socket(PF_PACKET, SOCK_DGRAM, htons(ETH_P_ALL));
-	if (g_conf->rawsocket_out < 0)
 	{
 		dolog(LOG_ERR, "Couldn't allocate a RAW socket\n");
 		return -1;
@@ -1129,7 +1186,7 @@ int main(int argc, char *argv[], char *envp[])
 		g_conf->stat_packets_received++;
 		g_conf->stat_bytes_received+=len;
 
-		intn = int_find(sa.sll_ifindex);
+		intn = int_find(sa.sll_ifindex, true);
 		if (!intn)
 		{
 			// Create a new interface
@@ -1170,13 +1227,12 @@ int main(int argc, char *argv[], char *envp[])
 	dolog(LOG_INFO, "Shutdown, thank you for using ecmh\n");
 
 	// Cleanup the nodes
-	list_delete_all_node(g_conf->ints);
-	list_delete_all_node(g_conf->groups);
+	list_delete(g_conf->ints);
+	list_delete(g_conf->groups);
 	
 	// Close files and sockets
 	fclose(g_conf->stat_file);
 	close(g_conf->rawsocket);
-	close(g_conf->rawsocket_out);
 
 	cleanpid(SIGINT);
 

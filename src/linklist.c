@@ -212,6 +212,7 @@ listnode_lookup (struct list *list, void *data)
       return node;
   return NULL;
 }
+
 /* Delete the node from list.  For ospfd and ospf6d. */
 void
 list_delete_node (struct list *list, struct listnode *node)
@@ -226,6 +227,28 @@ list_delete_node (struct list *list, struct listnode *node)
     list->tail = node->prev;
   list->count--;
   listnode_free (node);
+}
+
+/* Move the node to the front - for int_find() - jeroen */
+void list_movefront_node(struct list *list, struct listnode *node)
+{
+	// Don't do a thing when it is already there
+	if (list->head == node) return;
+
+	// Delete it from the list's current position
+	if (node->prev) node->prev->next = node->next;
+	else list->head = node->next;
+	if (node->next) node->next->prev = node->prev;
+	else list->tail = node->prev;
+
+	// Insert it at the front
+	if (list->head)
+	{
+		list->head->prev = node;
+		node->prev = list->head->prev;
+	}
+	node->next = list->head;
+	list->head = node;
 }
 
 void

@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: grpint.c,v 1.2 2004/01/11 21:41:05 fuzzel Exp $
- $Date: 2004/01/11 21:41:05 $
+ $Id: grpint.c,v 1.3 2004/02/15 19:51:06 fuzzel Exp $
+ $Date: 2004/02/15 19:51:06 $
 **************************************/
 
 #include "ecmh.h"
@@ -28,16 +28,10 @@ struct grpintnode *grpint_create(const struct intnode *interface)
 
 void grpint_destroy(struct grpintnode *grpintn)
 {
-	struct subscrnode	*subscrn;
-	struct listnode		*ln;
-
 	if (!grpintn) return;
 
 	// Empty the subscriber list
-	LIST_LOOP(grpintn->subscriptions, subscrn, ln)
-	{
-		listnode_delete(grpintn->subscriptions, subscrn);
-	}
+	list_delete(grpintn->subscriptions);
 
 	// Free the node
 	free(grpintn);

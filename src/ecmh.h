@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.h,v 1.2 2004/01/11 21:41:05 fuzzel Exp $
- $Date: 2004/01/11 21:41:05 $
+ $Id: ecmh.h,v 1.3 2004/02/15 19:51:06 fuzzel Exp $
+ $Date: 2004/02/15 19:51:06 $
 **************************************/
 
 #define _XOPEN_SOURCE
@@ -80,8 +80,7 @@ struct conf
 
 	bool			daemonize;			// To Daemonize or to not to Daemonize
 	
-	int			rawsocket;			// RAW socket for receiving
-	int			rawsocket_out;			// RAW socket for sending outward
+	int			rawsocket;			// RAW socket for sending and receiving
 
 	FILE			*stat_file;			// The file handle of ourdump file
 	time_t			stat_starttime;			// When did we start

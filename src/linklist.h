@@ -51,6 +51,9 @@ void list_add_node_prev (struct list *, struct listnode *, void *);
 void list_add_node_next (struct list *, struct listnode *, void *);
 void list_add_list (struct list *, struct list *);
 
+/* Move the node to the front - for int_find() - jeroen */
+void list_movefront_node(struct list *, struct listnode *);
+
 /* List iteration macro. */
 #define LIST_LOOP(L,V,N) \
   for ((N) = (L)->head; (N); (N) = (N)->next) \

@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: interfaces.c,v 1.2 2004/01/11 21:41:05 fuzzel Exp $
- $Date: 2004/01/11 21:41:05 $
+ $Id: interfaces.c,v 1.3 2004/02/15 19:51:06 fuzzel Exp $
+ $Date: 2004/02/15 19:51:06 $
 **************************************/
 
 #include "ecmh.h"
@@ -35,7 +35,9 @@ struct intnode *int_create(int ifindex)
 	memset(intn, 0, sizeof(*intn));
 	
 	intn->ifindex = ifindex;
-	intn->removeme = false;
+	
+	// Default to 0, we discover this after the queries has been sent
+	intn->mld_version = 0;
 
 	// Get the interface name (eth0/sit0/...)
 	// Will be used for reports etc
@@ -82,14 +84,21 @@ void int_destroy(struct intnode *intn)
 	return;
 }
 
-struct intnode *int_find(int ifindex)
+struct intnode *int_find(int ifindex, bool resort)
 {
 	struct intnode	*intn;
 	struct listnode	*ln;
 
 	LIST_LOOP(g_conf->ints, intn, ln)
 	{
-		if (ifindex == intn->ifindex) return intn;
+		if (ifindex == intn->ifindex)
+		{
+			// Move the node to the beginning
+			// This way it will be in the front
+			// the next time we try to find it
+			if (resort) list_movefront_node(g_conf->ints, ln);
+			return intn;
+		}
 	}
 	return NULL;
 }
