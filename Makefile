@@ -3,8 +3,8 @@
 #  by Jeroen Massar <jeroen@unfix.org>
 # ***************************************
 # $Author: fuzzel $
-# $Id: Makefile,v 1.11 2004/10/07 12:09:24 fuzzel Exp $
-# $Date: 2004/10/07 12:09:24 $
+# $Id: Makefile,v 1.12 2004/10/07 12:21:47 fuzzel Exp $
+# $Date: 2004/10/07 12:21:47 $
 # **************************************/
 #
 # Toplevel Makefile allowing easy distribution.
@@ -112,6 +112,7 @@ distclean: clean
 
 clean: debclean
 	$(MAKE) -C src clean
+	$(MAKE) -C tools clean
 
 # Generate Distribution files
 dist:	tar bz2 deb debsrc rpm rpmsrc
