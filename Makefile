@@ -3,8 +3,8 @@
 #  by Jeroen Massar <jeroen@unfix.org>
 # ***************************************
 # $Author: fuzzel $
-# $Id: Makefile,v 1.8 2004/10/07 09:28:21 fuzzel Exp $
-# $Date: 2004/10/07 09:28:21 $
+# $Id: Makefile,v 1.9 2004/10/07 09:41:54 fuzzel Exp $
+# $Date: 2004/10/07 09:41:54 $
 # **************************************/
 #
 # Toplevel Makefile allowing easy distribution.
@@ -129,6 +129,7 @@ deb:	clean
 	# Copy the changelog
 	${CP} doc/changelog debian/changelog
 	debian/rules binary
+	${RM} debian/changelog
 	${MAKE} clean
 
 # Source .deb
@@ -136,6 +137,7 @@ debsrc: clean
 	# Copy the changelog
 	${CP} doc/changelog debian/changelog
 	cd ..; dpkg-source -b ${SOURCEDIR}; cd ${SOURCEDIR}
+	${RM} debian/changelog
 	${MAKE} clean
 
 # Cleanup after debian
@@ -166,3 +168,4 @@ rpmclean: clean
 
 # Mark targets as phony
 .PHONY : all ecmh tools install help clean dist tar bz2 deb debsrc debclean rpm rpmsrc
+
