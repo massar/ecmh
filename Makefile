@@ -3,8 +3,8 @@
 #  by Jeroen Massar <jeroen@unfix.org>
 # ***************************************
 # $Author: fuzzel $
-# $Id: Makefile,v 1.6 2004/02/17 19:05:13 fuzzel Exp $
-# $Date: 2004/02/17 19:05:13 $
+# $Id: Makefile,v 1.7 2004/02/19 14:21:07 fuzzel Exp $
+# $Date: 2004/02/19 14:21:07 $
 # **************************************/
 #
 # Toplevel Makefile allowing easy distribution.
@@ -43,9 +43,15 @@ RM=rm -f
 # Paths
 sbindir=/usr/sbin/
 srcdir=src/
+toolsdir=tools/
 
-all:	${srcdir}
+all:	ecmh tools
+
+ecmh:	$(srcdir)
 	$(MAKE) -C src all
+
+tools:	$(toolsdir)
+	$(MAKE) -C tools all
 
 help:
 	@echo "ecmh - Easy Cast du Multi Hub"
@@ -54,6 +60,8 @@ help:
 	@echo
 	@echo "Makefile targets:"
 	@echo "all      : Build everything"
+	@echo "ecmh	: Build only ecmh"
+	@echo "tools	: Build only the tools"
 	@echo "help     : This little text"
 	@echo "install  : Build & Install"
 	@echo "clean    : Clean the dirs to be pristine in bondage"
@@ -117,4 +125,4 @@ rpmsrc:	clean
 	# TODO ;)
 
 # Mark targets as phony
-.PHONY : all install help clean dist tar bz2 deb debsrc debclean rpm rpmsrc
+.PHONY : all ecmh tools install help clean dist tar bz2 deb debsrc debclean rpm rpmsrc
