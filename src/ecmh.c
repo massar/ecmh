@@ -3,8 +3,8 @@
  by Jeroen Massar <jeroen@unfix.org>
 ***************************************
  $Author: fuzzel $
- $Id: ecmh.c,v 1.10 2004/10/07 09:28:21 fuzzel Exp $
- $Date: 2004/10/07 09:28:21 $
+ $Id: ecmh.c,v 1.11 2004/10/07 12:08:00 fuzzel Exp $
+ $Date: 2004/10/07 12:08:00 $
 ***************************************
  
    Docs:
@@ -1488,7 +1488,7 @@ void update_interfaces(struct intnode *intn)
 #endif
 				)
 			{
-#if 1
+#if 0
 				dolog(LOG_DEBUG, "%s %u%s%s%s%s (%u) -> ignoring\n",
 					ifa->ifa_name,
 					ifa->ifa_addr->sa_family,
@@ -1501,7 +1501,7 @@ void update_interfaces(struct intnode *intn)
 #endif
 				continue;
 			}
-#if 1
+#if 0
 			dolog(LOG_DEBUG, "%s %u%s%s%s%s (%u) -> trying...\n",
 				ifa->ifa_name,
 				ifa->ifa_addr->sa_family,
