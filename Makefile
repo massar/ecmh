@@ -54,11 +54,12 @@ deb:	clean
 	# Copy the changelog
 	cp doc/changelog debian/changelog
 	debian/rules binary
-	THIS=`pwd`
 	${MAKE} clean
 
 # Source .deb
 debsrc: clean
+	# Copy the changelog
+	cp doc/changelog debian/changelog
 	cd ..; dpkg-source -b ${SOURCEDIR}; cd ${SOURCEDIR}
 	${MAKE} clean
 
@@ -75,5 +76,5 @@ rpmsrc:	clean
 	# TODO ;)
 
 # Mark targets as phony
-.PHONY : all install clean dist tar bz2 deb debsrc rpm rpmsrc
+.PHONY : all install clean dist tar bz2 deb debsrc debclean rpm rpmsrc
 
