@@ -1,0 +1,8 @@
+Following is a list of known TODO items:
+
+* Interoperability Testing
+* RFC checkup
+* Recode linked lists into hashes or something similar
+  to speed up processing
+* Timing issues
+
