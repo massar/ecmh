@@ -1,9 +1,6 @@
-The code for ecmh was written by Jeroen Massar <jeroen@unfix.org>
+The code for ecmh was written by Jeroen Massar <jeroen@massar.ch>
 
-The project started on Mon Jan 2 17:25:42 CET 2004 and it's main CVS
-repository is at the SourceForge development networks, located in the
-United States of America.
-
+The project started on Mon Jan 2 17:25:42 CET 2004.
 The copyright for this package is owned by Jeroen Massar.
 
 This program was developed for SixXS (http://www.sixxs.net) to
@@ -14,8 +11,8 @@ when IPv6 will be natively available. Users can use this package
 to enable their machine to do Multicast Routing and thus to
 enable their own networks to do Multicast.
 
-(C) 2004 Jeroen Massar <jeroen@unfix.org>
+(C) 2004 Jeroen Massar <jeroen@massar.ch>
 
-Authors Website: http://unfix.org/~jeroen/
+Authors Website: http://jeroen.massar.ch
    ecmh Website: http://unfix.org/projects/ecmh/
 

@@ -1,10 +1,6 @@
 # /**************************************
 #  ecmh - Easy Cast du Multi Hub
-#  by Jeroen Massar <jeroen@unfix.org>
-# ***************************************
-# $Author: fuzzel $
-# $Id: Makefile,v 1.1 2004/02/19 14:22:54 fuzzel Exp $
-# $Date: 2004/02/19 14:22:54 $
+#  by Jeroen Massar <jeroen@massar.ch>
 # **************************************/
 #
 # Tools Makefile

@@ -1,10 +1,10 @@
-%define    ecmh_version 2004.02.18
+%define    ecmh_version 2013.09.28
 
 Summary:   Multicast Routing Daemon
 Name:      ecmh
 Version:   %(version=`echo %{ecmh_version} | sed 's/\.//g'`; echo $version)
 Release:   %{ecmh_version}
-License:   GPL
+License:   BSD
 Group:     System Environment/Daemons
 URL:       http://unfix.org/projects/ecmh/
 Vendor:    Jeroen Massar
@@ -34,6 +34,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_sbindir}/ecmh
 
 %changelog
-* Tue Jan 17 2004 Jeroen Massar <jeroen@unfix.org> 2004.02.18
-* Sat Jan 10 2004 Jeroen Massar <jeroen@unfix.org> 2004.01.10
+* Sat Sep 28 2013 Jeroen Massar <jeroen@massar.ch> 2013.09.28
+* Tue Jan 17 2004 Jeroen Massar <jeroen@massar.ch> 2004.02.18
+* Sat Jan 10 2004 Jeroen Massar <jeroen@massar.ch> 2004.01.10
 - initial

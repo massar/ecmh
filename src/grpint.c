@@ -1,10 +1,6 @@
 /**************************************
  ecmh - Easy Cast du Multi Hub
- by Jeroen Massar <jeroen@unfix.org>
-***************************************
- $Author: fuzzel $
- $Id: grpint.c,v 1.7 2005/02/09 17:58:06 fuzzel Exp $
- $Date: 2005/02/09 17:58:06 $
+ by Jeroen Massar <jeroen@massar.ch>
 **************************************/
 
 #include "ecmh.h"

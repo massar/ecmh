@@ -1,13 +1,9 @@
 # /**************************************
 #  ecmh - Easy Cast du Multi Hub
-#  by Jeroen Massar <jeroen@unfix.org>
-# ***************************************
-# $Author: fuzzel $
-# $Id: Makefile,v 1.8 2005/02/09 17:58:06 fuzzel Exp $
-# $Date: 2005/02/09 17:58:06 $
+#  by Jeroen Massar <jeroen@massar.ch>
 # **************************************/
 #
-# Source Makefile for ecmh - Jeroen Massar <jeroen@unfix.org>
+# Source Makefile for ecmh - Jeroen Massar <jeroen@massar.ch>
 #
 # ECMH_VERSION and ECMH_OPTIONS need to be defined, gets done by toplevel Makefile
 #
@@ -17,7 +13,7 @@
 # then run 'make' from this directory
 # On FreeBSD4 install the "libgnugetopt" port to get getopt working
 #ECMH_OPTIONS=-DECMH_BPF -DECMH_SUPPORT_MLD2 -DECMH_GETIFADDR -I/usr/local/include/
-#ECMH_VERSION=2004.10.09
+#ECMH_VERSION=2013.09.28
 #ECMH_LDFREEBSD=-L/usr/local/lib/ -lgnugetopt
 
 # Below here nothing should have to be changed

@@ -1,10 +1,6 @@
 /**************************************
  ecmh - Easy Cast du Multi Hub
- by Jeroen Massar <jeroen@unfix.org>
-***************************************
- $Author: fuzzel $
- $Id: interfaces.h,v 1.8 2005/02/09 17:58:06 fuzzel Exp $
- $Date: 2005/02/09 17:58:06 $
+ by Jeroen Massar <jeroen@massar.ch>
 **************************************/
 
 #define INTNODE_MAXIPV4 4			/* Maximum number of IPv4 aliases */

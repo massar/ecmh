@@ -1,13 +1,9 @@
 # /**************************************
 #  ecmh - Easy Cast du Multi Hub
-#  by Jeroen Massar <jeroen@unfix.org>
-# ***************************************
-# $Author: fuzzel $
-# $Id: Makefile,v 1.1 2004/02/19 14:22:54 fuzzel Exp $
-# $Date: 2004/02/19 14:22:54 $
+#  by Jeroen Massar <jeroen@massar.ch>
 # **************************************/
 #
-# Tools Makefile for ecmh - Jeroen Massar <jeroen@unfix.org>
+# Tools Makefile for ecmh - Jeroen Massar <jeroen@massar.ch>
 #
 # mtrace6 is taken from the KAME distribution, see http://www.kame.net
 # Copyright etc is theirs, it is only included for convienience.

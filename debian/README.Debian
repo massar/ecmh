@@ -9,5 +9,5 @@ Which calls simply "debian/rules binary" ofcourse ;)
 This should run out-of-the-box (read: deb) as user 
 nobody as is being done on several of the SixXS POPs.
 
-Jeroen Massar <jeroen@unfix.org>
+Jeroen Massar <jeroen@massar.ch>
 

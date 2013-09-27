@@ -1,10 +1,6 @@
 /**************************************
  ecmh - Easy Cast du Multi Hub
- by Jeroen Massar <jeroen@unfix.org>
-***************************************
- $Author: fuzzel $
- $Id: groups.h,v 1.4 2005/02/09 17:58:06 fuzzel Exp $
- $Date: 2005/02/09 17:58:06 $
+ by Jeroen Massar <jeroen@massar.ch>
 **************************************/
 
 /* The node used to hold the groups we joined */

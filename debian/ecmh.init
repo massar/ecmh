@@ -2,7 +2,7 @@
 #
 # /etc/init.d/ecmh: start, stop and statdump ecmh
 #
-# Jeroen Massar <jeroen@unfix.org>
+# Jeroen Massar <jeroen@massar.ch>
 # ecmh website: http://unfix.org/projects/ecmh/
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin

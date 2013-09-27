@@ -1,10 +1,6 @@
 /**************************************
  ecmh - Easy Cast du Multi Hub
- by Jeroen Massar <jeroen@unfix.org>
-***************************************
- $Author: fuzzel $
- $Id: mld.h,v 1.4 2004/10/07 09:28:21 fuzzel Exp $
- $Date: 2004/10/07 09:28:21 $
+ by Jeroen Massar <jeroen@massar.ch>
 **************************************/
 
 /* Wrappers so we don't have to change the copied stuff ;) */

@@ -1,10 +1,6 @@
 /**************************************
  ecmh - Easy Cast du Multi Hub
- by Jeroen Massar <jeroen@unfix.org>
-***************************************
- $Author: fuzzel $
- $Id: ecmh.h,v 1.10 2005/02/09 17:58:06 fuzzel Exp $
- $Date: 2005/02/09 17:58:06 $
+ by Jeroen Massar <jeroen@massar.ch>
 **************************************/
 
 #include <sys/types.h>
@@ -56,7 +52,7 @@
 #define PIDFILE "/var/run/ecmh.pid"
 #define ECMH_DUMPFILE "/var/run/ecmh.dump"
 
-#define ECMH_VERSION_STRING "Easy Cast du Multi Hub (ecmh) %s by Jeroen Massar <jeroen@unfix.org>\n"
+#define ECMH_VERSION_STRING "Easy Cast du Multi Hub (ecmh) %s by Jeroen Massar <jeroen@massar.ch>\n"
 
 #ifdef DEBUG
 #define D(x) x

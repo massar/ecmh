@@ -1,10 +1,6 @@
 # /**************************************
 #  ecmh - Easy Cast du Multi Hub
-#  by Jeroen Massar <jeroen@unfix.org>
-# ***************************************
-# $Author: fuzzel $
-# $Id: Makefile,v 1.19 2005/02/09 17:58:52 fuzzel Exp $
-# $Date: 2005/02/09 17:58:52 $
+#  by Jeroen Massar <jeroen@massar.ch>
 # **************************************/
 #
 # Toplevel Makefile allowing easy distribution.
@@ -89,7 +85,7 @@ tools:	$(toolsdir)
 help:
 	@echo "ecmh - Easy Cast du Multi Hub"
 	@echo "Website: http://unfix.org/projects/ecmh/"
-	@echo "Author : Jeroen Massar <jeroen@unfix.org>"
+	@echo "Author : Jeroen Massar <jeroen@massar.ch>"
 	@echo
 	@echo "Makefile targets:"
 	@echo "all      : Build everything"

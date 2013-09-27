@@ -1,10 +1,6 @@
 /**************************************
  ecmh - Easy Cast du Multi Hub
- by Jeroen Massar <jeroen@unfix.org>
-***************************************
- $Author: fuzzel $
- $Id: ecmh.c,v 1.19 2005/02/09 17:58:06 fuzzel Exp $
- $Date: 2005/02/09 17:58:06 $
+ by Jeroen Massar <jeroen@massar.ch>
 ***************************************
  
    Docs:
@@ -2658,7 +2654,7 @@ int main(int argc, char *argv[])
 #endif
 				"\n"				
 				"\n"
-				"Report bugs to Jeroen Massar <jeroen@unfix.org>.\n"
+				"Report bugs to Jeroen Massar <jeroen@massar.ch>.\n"
 				"Also see the website at http://unfix.org/projects/ecmh/\n"
 				"\n"
 				"* = RFC incompliant as it ignores MLDv1 reports completely\n"

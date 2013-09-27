@@ -161,7 +161,7 @@ struct tr6_resp {
 #define PROTO_PIM_SPECIAL  5
 #define PROTO_PIM_STATIC   6
 #define PROTO_DVMRP_STATIC 7
-#define PROTO_MLD          8         /* MLD, added by Jeroen Massar<jeroen@unfix.org>,
+#define PROTO_MLD          8         /* MLD, added by Jeroen Massar<jeroen@massar.ch>,
                                         This is used by ecmh. */
 
 #define MASK_TO_VAL(x, i) { \
