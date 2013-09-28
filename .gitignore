@@ -1,0 +1,6 @@
+# Intermediate files
+*.o
+
+# Binaries
+src/ecmh
+tools/mtrace6/mtrace6
