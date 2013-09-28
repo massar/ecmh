@@ -33,7 +33,7 @@ CFLAGS += -DECMH_GITHASH=$(ECMH_GITHASH)
 
 # Not Linux? -> Enable BPF Mode
 ifeq ($(shell uname | grep -c "Linux"),0)
-ECMH_OPTIONS:=$(ECMH_OPTIONS) ECMH_BPF
+ECMH_OPTIONS:=$(ECMH_OPTIONS) -DECMH_BPF
 endif
 
 # Export it to the other Makefile
