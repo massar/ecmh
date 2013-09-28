@@ -13,7 +13,6 @@ ECMH=ecmh
 
 # The version of this release
 ECMH_VERSION=2013.09.28
-export ECMH_VERSION
 
 # ECMH Compile Time Options
 # Append one of the following option on wish to
@@ -27,12 +26,19 @@ export ECMH_VERSION
 # BPF Support (BSD)    : _DECMH_BPF
 ECMH_OPTIONS=-DECMH_SUPPORT_MLD2 -DECMH_GETIFADDR
 
+########################################################
+
+ECMH_GITHASH:=$(shell git log --pretty=format:'%H' -n 1)
+CFLAGS += -DECMH_GITHASH=$(ECMH_GITHASH)
+
 # Not Linux? -> Enable BPF Mode
 ifeq ($(shell uname | grep -c "Linux"),0)
 ECMH_OPTIONS:=$(ECMH_OPTIONS) ECMH_BPF
 endif
 
 # Export it to the other Makefile
+export ECMH_VERSION
+export ECMH_GITHASH
 export ECMH_OPTIONS
 
 # Tag it with debug when it is run with debug set
@@ -44,7 +50,6 @@ endif
 MAKEFLAGS += --no-print-directory
 
 # Misc bins, making it easy to quiet them :)
-CC=gcc
 RM=@rm -f
 MV=@mv
 MAKE:=@${MAKE}
@@ -74,7 +79,14 @@ sbindir=/usr/sbin/
 srcdir=src/
 toolsdir=tools/
 
-all:	ecmh tools
+all:	intro ecmh tools
+
+intro:
+	@echo "==================-------~~"
+	@echo "Building: ecmh"
+	@echo "Version : $(ECMH_VERSION)"
+	@echo "Git Hash: $(ECMH_GITHASH)"
+	@echo "=====------------~~~~"
 
 ecmh:	$(srcdir)
 	$(MAKE) -C src all
@@ -93,6 +105,7 @@ help:
 	@echo "tools	: Build only the tools"
 	@echo "help     : This little text"
 	@echo "install  : Build & Install"
+	@echo "depend	: Build dependency files"
 	@echo "clean    : Clean the dirs to be pristine in bondage"
 	@echo
 	@echo "Distribution targets:"
@@ -114,6 +127,10 @@ distclean: clean
 clean: debclean
 	$(MAKE) -C src clean
 	$(MAKE) -C tools clean
+
+depend:
+	$(MAKE) -C src depend
+	$(MAKE) -C tools depend
 
 # Generate Distribution files
 dist:	tar bz2 deb debsrc rpm rpmsrc
@@ -146,7 +163,7 @@ debsrc: clean
 
 # Cleanup after debian
 debclean:
-	if [ -f configure-stamp ]; then debian/rules clean; fi;
+	@if [ -f configure-stamp ]; then debian/rules clean; fi;
 
 # RPM
 rpm:	rpmclean tar

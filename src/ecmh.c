@@ -2272,6 +2272,7 @@ static void sigusr1(int i)
 	fprintf(g_conf->stat_file, "*** Statistics Dump\n");
 	fprintf(g_conf->stat_file, "\n");
 	fprintf(g_conf->stat_file, "Version              : ecmh %s\n", ECMH_VERSION);
+	fprintf(g_conf->stat_file, "Git Hash             : %s\n", ECMH_GITHASH);
 	fprintf(g_conf->stat_file, "Started              : %s GMT\n", addr);
 	fprintf(g_conf->stat_file, "Uptime               : %u days %02u:%02u:%02u\n", uptime_d, uptime_h, uptime_m, uptime_s);
 #ifdef ECMH_BPF
@@ -2630,7 +2631,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'V':
-			printf(ECMH_VERSION_STRING, ECMH_VERSION);
+			printf(ECMH_VERSION_STRING, ECMH_VERSION, ECMH_GITHASH);
 			return 0;
 #ifdef ECMH_SUPPORT_MLD2
 		case '1':
@@ -2731,7 +2732,7 @@ int main(int argc, char *argv[])
 	signal(SIGUSR2, &sigusr2);
 
 	/* Show our version in the startup logs ;) */
-	dolog(LOG_INFO, ECMH_VERSION_STRING, ECMH_VERSION);
+	dolog(LOG_INFO, ECMH_VERSION_STRING, ECMH_VERSION, ECMH_GITHASH);
 #ifdef ECMH_BPF
 	dolog(LOG_INFO, "Tunnelmode is %s\n", g_conf->tunnelmode ? "Active" : "Disabled");
 #endif

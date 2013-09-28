@@ -1,5 +1,6 @@
 # Intermediate files
 *.o
+*.d
 
 # Binaries
 src/ecmh

@@ -57,7 +57,7 @@
 #define PIDFILE "/var/run/ecmh.pid"
 #define ECMH_DUMPFILE "/var/run/ecmh.dump"
 
-#define ECMH_VERSION_STRING "Easy Cast du Multi Hub (ecmh) %s by Jeroen Massar <jeroen@massar.ch>\n"
+#define ECMH_VERSION_STRING "Easy Cast du Multi Hub (ecmh) %s/%s by Jeroen Massar <jeroen@massar.ch>\n"
 
 #ifdef DEBUG
 #define D(x) x

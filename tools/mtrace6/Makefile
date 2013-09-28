@@ -15,14 +15,32 @@ DEPS	= ../../Makefile ../Makefile Makefile
 OBJS	= mtrace6.o
 CFLAGS	= -W -Wall -Wno-unused -D_GNU_SOURCE -D'ECMH_VERSION="$(ECMH_VERSION)"' $(ECMH_OPTIONS)
 LDFLAGS	= 
-CC      = gcc
-RM      = rm
+RM	= @rm
+LINK	= @echo "* Linking $@"; $(CC) $(CFLAGS) $(LDFLAGS)
+
+-include $(OBJS:.o=.d)
 
 all:	$(BINS)
 
-mtrace6: $(OBJS) ${INCS} ${DEPS}
-	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS);
-	strip $@
+depend: clean
+	@echo "* Making dependencies"
+	@$(MAKE) -s $(OBJS)
+	@echo "* Making dependencies - done"
+
+%.o: %.c $(DEPS)
+	@echo "* Compiling $@";
+	@$(CC) -c $(CFLAGS) $*.c -o $*.o
+	@$(CC) -MM $(CFLAGS) $*.c > $*.d
+	@cp -f $*.d $*.d.tmp
+	@sed -e 's/.*://' -e 's/\\$$//' < $*.d.tmp | fmt -1 | \
+		sed -e 's/^ *//' -e 's/$$/:/' >> $*.d
+	@rm -f $*.d.tmp
+
+mtrace6: $(DEPS) $(OBJS) $(INCS)
+	$(LINK) -o $@ $(OBJS) $(LDLIBS)
+ifeq ($(shell echo $(ECMH_OPTIONS) | grep -c "DEBUG"),0)
+	@strip $@
+endif
 
 clean:
 	$(RM) -f $(OBJS) $(BINS)

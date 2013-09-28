@@ -30,14 +30,30 @@ else
 EXTRA	= -O3
 endif
 
-CFLAGS	= $(WARNS) $(EXTRA) -D_GNU_SOURCE -D'ECMH_VERSION="$(ECMH_VERSION)"' $(ECMH_OPTIONS)
+CFLAGS	= $(WARNS) $(EXTRA) -D_GNU_SOURCE -D'ECMH_VERSION="$(ECMH_VERSION)"' -D'ECMH_GITHASH="$(ECMH_GITHASH)"' $(ECMH_OPTIONS)
 LDFLAGS	= $(ECMH_LDFREEBSD)
-CC	:= @echo "[Compiling] $$@"; $(CC)
+LINK    = @echo "* Linking $@"; $(CC) $(CFLAGS) $(LDFLAGS)
+
+-include $(OBJS:.o=.d)
 
 all:	$(BINS)
 
-ecmh:	$(OBJS) ${INCS} ${DEPS}
-	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS)
+depend: clean
+	@echo "* Making dependencies"
+	@$(MAKE) -s $(OBJS)
+	@echo "* Making dependencies - done"
+
+%.o: %.c $(DEPS)
+	@echo "* Compiling $@";
+	@$(CC) -c $(CFLAGS) $*.c -o $*.o
+	@$(CC) -MM $(CFLAGS) $*.c > $*.d
+	@cp -f $*.d $*.d.tmp
+	@sed -e 's/.*://' -e 's/\\$$//' < $*.d.tmp | fmt -1 | \
+		sed -e 's/^ *//' -e 's/$$/:/' >> $*.d
+	@rm -f $*.d.tmp
+
+ecmh:	$(DEPS) $(OBJS)
+	$(LINK) -o $@ $(OBJS) $(LDLIBS)
 ifeq ($(shell echo $(ECMH_OPTIONS) | grep -c "DEBUG"),0)
 	@strip $@
 endif

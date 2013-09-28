@@ -14,6 +14,9 @@ mtrace6: mtrace6/
 clean:
 	$(MAKE) -C mtrace6 clean
 
+depend:
+	$(MAKE) -C mtrace6 depend
+
 # Mark targets as phony
 .PHONY : all clean mtrace6
 
