@@ -78,14 +78,14 @@ static char *pr_addr __P((struct sockaddr *, int, int));
 static void setqid __P((int, char *));
 static void mtrace_loop __P((void));
 static char *str_rflags __P((unsigned int));
-static void show_ip6_result __P((struct sockaddr_in6 *, unsigned int));
+static void show_ip6_result __P((unsigned int));
 static void show_result __P((struct sockaddr *, int));
 static void set_sockaddr __P((char *, struct addrinfo *, struct sockaddr *,
 	size_t));
 static int is_multicast __P((struct sockaddr *));
 static char *all_routers_str __P((int));
-static int ip6_validaddr __P((char *, struct sockaddr_in6 *));
-static int get_my_sockaddr __P((int, struct sockaddr *, size_t, size_t));
+static int ip6_validaddr __P((struct sockaddr_in6 *));
+static int get_my_sockaddr __P((int, struct sockaddr *, size_t));
 static void set_hlim __P((int, struct sockaddr *, int));
 static void set_join __P((int, char *, struct sockaddr *));
 static void set_filter __P((int, int));
@@ -231,12 +231,13 @@ setqid(family, query)
 static void
 mtrace_loop()
 {
-	int nsoc, fromlen, rcvcc;
-	struct timeval tv, tv_wait;
-	fd_set *fdsp;
-	size_t nfdsp;
-	struct sockaddr_storage from_ss;
-	struct sockaddr *from_sock = (struct sockaddr *)&from_ss;
+	int		nsoc, rcvcc;
+	socklen_t	fromlen;
+	struct timeval	tv, tv_wait;
+	fd_set		*fdsp;
+	size_t		nfdsp;
+	struct		sockaddr_storage from_ss;
+	struct sockaddr	*from_sock = (struct sockaddr *)&from_ss;
 
 	/* initializa random number of query ID */
 	gettimeofday(&tv, 0);
@@ -309,8 +310,7 @@ str_rflags(flag)
 }
 
 static void
-show_ip6_result(from6, datalen)
-	struct sockaddr_in6 *from6;
+show_ip6_result(datalen)
 	unsigned int datalen;
 {
 	struct mld1 *mld6_tr_resp = (struct mld1 *)frombuf;
@@ -388,7 +388,7 @@ show_result(from, datalen)
 {
 	switch(from->sa_family) {
 	case AF_INET6:
-		show_ip6_result((struct sockaddr_in6 *)from, datalen);
+		show_ip6_result(datalen);
 		break;
 	default:
 		errx(1, "show_result: illegal AF(%d) on recv", from->sa_family);
@@ -452,8 +452,7 @@ all_routers_str(family)
 }
 
 static int
-ip6_validaddr(ifname, addr)
-	char *ifname;
+ip6_validaddr(addr)
 	struct sockaddr_in6 *addr;
 {
 //	int s;
@@ -466,8 +465,9 @@ ip6_validaddr(ifname, addr)
 	    IN6_IS_ADDR_SITELOCAL(&addr->sin6_addr))
 		return(0);
 
+#if 0
 	/* get IPv6 dependent flags and examine them */
-/*	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
+	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
 		err(1, "ip6_validaddr: socket");
 
 	strncpy(ifr6.ifr_name, ifname, sizeof(ifr6.ifr_name));
@@ -479,15 +479,15 @@ ip6_validaddr(ifname, addr)
 	if (flags6 & (IN6_IFF_ANYCAST | IN6_IFF_TENTATIVE |
 		      IN6_IFF_DUPLICATED | IN6_IFF_DETACHED))
 		return(0);
-*/
+#endif
+
 	return(1);
 }
 
 static int
-get_my_sockaddr(family, addrp, l, sa_len)
+get_my_sockaddr(family, addrp, sa_len)
 	int family;
 	struct sockaddr *addrp;
-	size_t l;
 	size_t sa_len;
 {
 	struct ifaddrs *ifap, *ifa;
@@ -504,8 +504,7 @@ get_my_sockaddr(family, addrp, l, sa_len)
 //			continue;
 		switch(family) {
 		case AF_INET6:
-			if (ip6_validaddr(ifa->ifa_name,
-			    (struct sockaddr_in6 *)ifa->ifa_addr))
+			if (ip6_validaddr((struct sockaddr_in6 *)ifa->ifa_addr))
 				goto found;
 		}
 	}
@@ -625,7 +624,7 @@ open_socket()
 	}
 	else {
 		/* XXX: consider interface? */
-		get_my_sockaddr(grp_sock->ss_family, (struct sockaddr *)dst_sock, sizeof(dst_ss),sizeof(dst_sock));
+		get_my_sockaddr(grp_sock->ss_family, (struct sockaddr *)dst_sock, sizeof(dst_sock));
 	}
 
 	/* response receiver(if specified) */
@@ -646,7 +645,7 @@ open_socket()
 	}
 	else {
 		/* XXX: consider interface? */
-		get_my_sockaddr(grp_sock->ss_family, (struct sockaddr *)rcv_sock, sizeof(rcv_ss),sizeof(rcv_sock));
+		get_my_sockaddr(grp_sock->ss_family, (struct sockaddr *)rcv_sock, sizeof(rcv_sock));
 	}
 
 	if ((mldsoc = socket(hints.ai_family, hints.ai_socktype,

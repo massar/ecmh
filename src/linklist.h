@@ -7,6 +7,8 @@
 #ifndef __LINKLIST_H
 #define __LINKLIST_H
 
+#include "ecmh.h"
+
 struct listnode 
 {
 	struct listnode	*next;
@@ -18,7 +20,7 @@ struct list
 {
 	struct listnode	*head;
 	struct listnode	*tail;
-	int		count;
+	int64_t		count;
 	void		(*del)(void *val);
 };
 

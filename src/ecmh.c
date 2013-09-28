@@ -98,7 +98,7 @@ uint16_t ipv6_checksum(const struct ip6_hdr *ip6, uint8_t protocol, const void *
 
 struct lookup
 {
-	unsigned int	num;
+	uint64_t	num;
 	const char	*desc;
 } icmpv6_types[] = {
 	{ ICMP6_DST_UNREACH,			"Destination Unreachable"		},
@@ -126,7 +126,6 @@ struct lookup
 }, icmpv6_codes_unreach[] = {
 	{ ICMP6_DST_UNREACH_NOROUTE,		"No route to destination"		},
 	{ ICMP6_DST_UNREACH_ADMIN,		"Administratively prohibited"		},
-	{ ICMP6_DST_UNREACH_NOTNEIGHBOR,	"Not a neighbor (obsolete)"		},
 	{ ICMP6_DST_UNREACH_BEYONDSCOPE,	"Beyond scope of source address"	},
 	{ ICMP6_DST_UNREACH_ADDR,		"Address Unreachable"			},
 	{ ICMP6_DST_UNREACH_NOPORT,		"Port Unreachable"			},
@@ -877,7 +876,6 @@ void mld_send_report_all(struct intnode *interface, const struct in6_addr *mca)
 {
 	unsigned int		i;
 	struct intnode		*intn;
-	struct groupnode	*groupn;
 
 	dolog(LOG_DEBUG, "Broadcasting group to all interfaces but %s...\n", interface->name);
 
@@ -973,6 +971,9 @@ void l4_ipv4_proto41(struct intnode *intn, struct ip *iph, const uint8_t *packet
 void l3_ipv4(struct intnode *intn, struct ip *iph, const uint16_t len);
 void l3_ipv4(struct intnode *intn, struct ip *iph, const uint16_t len)
 {
+	/* Sometimes not used, makes compiler a bit happier */
+	intn = intn;
+
 	if (iph->ip_v != 4)
 	{
 		D(dolog(LOG_DEBUG, "%5s L3:IPv4: IP version %u not supported\n", intn->name, iph->ip_v);)
@@ -1033,8 +1034,8 @@ void mld_log(unsigned int level, const char *fmt, const struct in6_addr *i_mca, 
 	dolog(level, fmt, mca, intn->name, intn->ifindex);
 }
 
-void l4_ipv6_icmpv6_mld1_report(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t len, struct mld1 *mld1, const uint16_t plen);
-void l4_ipv6_icmpv6_mld1_report(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t len, struct mld1 *mld1, const uint16_t plen)
+void l4_ipv6_icmpv6_mld1_report(struct intnode *intn, struct mld1 *mld1);
+void l4_ipv6_icmpv6_mld1_report(struct intnode *intn, struct mld1 *mld1)
 {
 	struct grpintnode	*grpintn;
 	struct in6_addr		any;
@@ -1089,8 +1090,8 @@ void l4_ipv6_icmpv6_mld1_report(struct intnode *intn, const struct ip6_hdr *iph,
 	return;
 }
 
-void l4_ipv6_icmpv6_mld1_reduction(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t len, struct mld1 *mld1, const uint16_t plen);
-void l4_ipv6_icmpv6_mld1_reduction(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t len, struct mld1 *mld1, const uint16_t plen)
+void l4_ipv6_icmpv6_mld1_reduction(struct intnode *intn, struct mld1 *mld1);
+void l4_ipv6_icmpv6_mld1_reduction(struct intnode *intn, struct mld1 *mld1)
 {
 	struct groupnode	*groupn;
 	struct grpintnode	*grpintn;
@@ -1163,8 +1164,8 @@ void l4_ipv6_icmpv6_mld1_reduction(struct intnode *intn, const struct ip6_hdr *i
 }
 
 #ifdef ECMH_SUPPORT_MLD2
-void l4_ipv6_icmpv6_mld2_report(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t len, struct mld2_report *mld2r, const uint16_t plen);
-void l4_ipv6_icmpv6_mld2_report(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t len, struct mld2_report *mld2r, const uint16_t plen)
+void l4_ipv6_icmpv6_mld2_report(struct intnode *intn, struct mld2_report *mld2r, const uint16_t plen);
+void l4_ipv6_icmpv6_mld2_report(struct intnode *intn, struct mld2_report *mld2r, const uint16_t plen)
 {
 	char			mca[INET6_ADDRSTRLEN], srct[INET6_ADDRSTRLEN];
 	struct grpintnode	*grpintn = NULL;
@@ -1307,8 +1308,8 @@ void l4_ipv6_icmpv6_mld2_report(struct intnode *intn, const struct ip6_hdr *iph,
 }
 #endif /* ECMH_SUPPORT_MLD2 */
 
-void l4_ipv6_icmpv6_mld_query(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t len, struct mld2_query *mld, const uint16_t plen);
-void l4_ipv6_icmpv6_mld_query(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t len, struct mld2_query *mld, const uint16_t plen)
+void l4_ipv6_icmpv6_mld_query(struct intnode *intn, const uint16_t plen);
+void l4_ipv6_icmpv6_mld_query(struct intnode *intn, const uint16_t plen)
 {
 	struct groupnode	*groupn;
 	struct listnode		*ln;
@@ -1574,22 +1575,22 @@ void l4_ipv6_icmpv6(struct intnode *intn, struct ip6_hdr *iph, const uint16_t le
 
 		if (icmpv6->icmp6_type == ICMP6_MEMBERSHIP_REPORT)
 		{
-			l4_ipv6_icmpv6_mld1_report(intn, iph, len, (struct mld1 *)icmpv6, plen);
+			l4_ipv6_icmpv6_mld1_report(intn, (struct mld1 *)icmpv6);
 		}
 		else if (icmpv6->icmp6_type == ICMP6_MEMBERSHIP_REDUCTION)
 		{
-			l4_ipv6_icmpv6_mld1_reduction(intn, iph, len, (struct mld1 *)icmpv6, plen);
+			l4_ipv6_icmpv6_mld1_reduction(intn, (struct mld1 *)icmpv6);
 		}
 #ifdef ECMH_SUPPORT_MLD2
 		else if (icmpv6->icmp6_type == ICMP6_V2_MEMBERSHIP_REPORT ||
 			 icmpv6->icmp6_type == ICMP6_V2_MEMBERSHIP_REPORT_EXP)
 		{
-			l4_ipv6_icmpv6_mld2_report(intn, iph, len, (struct mld2_report *)icmpv6, plen);
+			l4_ipv6_icmpv6_mld2_report(intn, (struct mld2_report *)icmpv6, plen);
 		}
 #endif /* ECMH_SUPPORT_MLD2 */
 		else if (icmpv6->icmp6_type == ICMP6_MEMBERSHIP_QUERY)
 		{
-			l4_ipv6_icmpv6_mld_query(intn, iph, len, (struct mld2_query *)icmpv6, plen);
+			l4_ipv6_icmpv6_mld_query(intn, plen);
 		}
 		else
 		{
@@ -2144,15 +2145,15 @@ void sigusr1(int i)
 	{
 		inet_ntop(AF_INET6, &groupn->mca, addr, sizeof(addr));
 		fprintf(g_conf->stat_file, "Group : %s\n", addr);
-		fprintf(g_conf->stat_file, "\tBytes  : %llu\n", groupn->bytes);
-		fprintf(g_conf->stat_file, "\tPackets: %llu\n", groupn->packets);
+		fprintf(g_conf->stat_file, "\tBytes  : %" PRIu64 "\n", groupn->bytes);
+		fprintf(g_conf->stat_file, "\tPackets: %" PRIu64 "\n", groupn->packets);
 
 		LIST_LOOP(groupn->interfaces, grpintn, gn)
 		{
 			intn = int_find(grpintn->ifindex);
 			if (!intn) continue;
 
-			fprintf(g_conf->stat_file, "\tInterface: %s (%d)\n",
+			fprintf(g_conf->stat_file, "\tInterface: %s (%" PRIi64 ")\n",
 				intn->name, grpintn->subscriptions->count);
 
 			LIST_LOOP(grpintn->subscriptions, subscrn, ssn)
@@ -2172,7 +2173,7 @@ void sigusr1(int i)
 		fprintf(g_conf->stat_file, "\n");
 	}
 
-	fprintf(g_conf->stat_file, "*** Subscription Information Dump (end - %u groups, %u subscriptions)\n", g_conf->groups->count, subscriptions);
+	fprintf(g_conf->stat_file, "*** Subscription Information Dump (end - %" PRIi64 " groups, %u subscriptions)\n", g_conf->groups->count, subscriptions);
 	fprintf(g_conf->stat_file, "\n");
 
 	/* Dump all the interfaces */
@@ -2224,12 +2225,12 @@ void sigusr1(int i)
 		else
 		fprintf(g_conf->stat_file, "  MLD version            : v%u\n", intn->mld_version);
 
-		fprintf(g_conf->stat_file, "  Packets received       : %llu\n", intn->stat_packets_received);
-		fprintf(g_conf->stat_file, "  Packets sent           : %llu\n", intn->stat_packets_sent);
-		fprintf(g_conf->stat_file, "  Bytes received         : %llu\n", intn->stat_bytes_received);
-		fprintf(g_conf->stat_file, "  Bytes sent             : %llu\n", intn->stat_bytes_sent);
-		fprintf(g_conf->stat_file, "  ICMP's received        : %llu\n", intn->stat_icmp_received);
-		fprintf(g_conf->stat_file, "  ICMP's sent            : %llu\n", intn->stat_icmp_sent);
+		fprintf(g_conf->stat_file, "  Packets received       : %" PRIu64 "\n", intn->stat_packets_received);
+		fprintf(g_conf->stat_file, "  Packets sent           : %" PRIu64 "\n", intn->stat_packets_sent);
+		fprintf(g_conf->stat_file, "  Bytes received         : %" PRIu64 "\n", intn->stat_bytes_received);
+		fprintf(g_conf->stat_file, "  Bytes sent             : %" PRIu64 "\n", intn->stat_bytes_sent);
+		fprintf(g_conf->stat_file, "  ICMP's received        : %" PRIu64 "\n", intn->stat_icmp_received);
+		fprintf(g_conf->stat_file, "  ICMP's sent            : %" PRIu64 "\n", intn->stat_icmp_sent);
 		fprintf(g_conf->stat_file, "\n");
 	}
 
@@ -2250,20 +2251,20 @@ void sigusr1(int i)
 #endif /* ECMH_BPF */
 	fprintf(g_conf->stat_file, "\n");
 	fprintf(g_conf->stat_file, "Interfaces Monitored : %u\n", count);
-	fprintf(g_conf->stat_file, "Groups Managed       : %u\n", g_conf->groups->count);
+	fprintf(g_conf->stat_file, "Groups Managed       : %" PRIi64 "\n", g_conf->groups->count);
 	fprintf(g_conf->stat_file, "Total Subscriptions  : %u\n", subscriptions);
 #ifdef ECMH_SUPPORT_MLD2
 	fprintf(g_conf->stat_file, "v2 Robustness Factor : %u\n", ECMH_ROBUSTNESS_FACTOR);
 #endif
 	fprintf(g_conf->stat_file, "Subscription Timeout : %u\n", ECMH_SUBSCRIPTION_TIMEOUT * ECMH_ROBUSTNESS_FACTOR);
 	fprintf(g_conf->stat_file, "\n");
-	fprintf(g_conf->stat_file, "Packets Received     : %llu\n", g_conf->stat_packets_received);
-	fprintf(g_conf->stat_file, "Packets Sent         : %llu\n", g_conf->stat_packets_sent);
-	fprintf(g_conf->stat_file, "Bytes Received       : %llu\n", g_conf->stat_bytes_received);
-	fprintf(g_conf->stat_file, "Bytes Sent           : %llu\n", g_conf->stat_bytes_sent);
-	fprintf(g_conf->stat_file, "ICMP's received      : %llu\n", g_conf->stat_icmp_received);
-	fprintf(g_conf->stat_file, "ICMP's sent          : %llu\n", g_conf->stat_icmp_sent);
-	fprintf(g_conf->stat_file, "Hop Limit Exceeded   : %llu\n", g_conf->stat_hlim_exceeded);
+	fprintf(g_conf->stat_file, "Packets Received     : %" PRIu64 "\n", g_conf->stat_packets_received);
+	fprintf(g_conf->stat_file, "Packets Sent         : %" PRIu64 "\n", g_conf->stat_packets_sent);
+	fprintf(g_conf->stat_file, "Bytes Received       : %" PRIu64 "\n", g_conf->stat_bytes_received);
+	fprintf(g_conf->stat_file, "Bytes Sent           : %" PRIu64 "\n", g_conf->stat_bytes_sent);
+	fprintf(g_conf->stat_file, "ICMP's received      : %" PRIu64 "\n", g_conf->stat_icmp_received);
+	fprintf(g_conf->stat_file, "ICMP's sent          : %" PRIu64 "\n", g_conf->stat_icmp_sent);
+	fprintf(g_conf->stat_file, "Hop Limit Exceeded   : %" PRIu64 "\n", g_conf->stat_hlim_exceeded);
 	fprintf(g_conf->stat_file, "\n");
 	fprintf(g_conf->stat_file, "*** Statistics Dump (end)\n");
 

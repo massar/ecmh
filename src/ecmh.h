@@ -3,6 +3,10 @@
  by Jeroen Massar <jeroen@massar.ch>
 **************************************/
 
+#ifndef ECMH_H
+#define ECMH_H "ECMH"
+
+#include <stdint.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -67,13 +71,25 @@
 /* Robustness Factor, per RFC3810 MLDv2 "9.1.  Robustness Variable" */
 #define ECMH_ROBUSTNESS_FACTOR		2
 
+#ifndef ICMP6_MEMBERSHIP_QUERY
+#define ICMP6_MEMBERSHIP_QUERY	MLD_LISTENER_QUERY
+#endif
+
+#ifndef ICMP6_MEMBERSHIP_REPORT
+#define ICMP6_MEMBERSHIP_REPORT MLD_LISTENER_REPORT
+#endif
+
+#ifndef ICMP6_MEMBERSHIP_REDUCTION
+#define ICMP6_MEMBERSHIP_REDUCTION MLD_LISTENER_REDUCTION
+#endif
+
 #include "linklist.h"
 #include "common.h"
 
 /* Booleans */
 #define false	0
 #define true	(!false)
-#define bool	int
+#define bool	uint64_t
 
 #include "interfaces.h"
 #include "groups.h"
@@ -83,13 +99,13 @@
 /* Our configuration structure */
 struct conf
 {
-	unsigned int		maxgroups;
-	unsigned int		maxinterfaces;			/* The max number of interfaces the array can hold */
+	uint64_t		maxgroups;
+	uint64_t		maxinterfaces;			/* The max number of interfaces the array can hold */
 	struct intnode		*ints;				/* The interfaces we are watching */
 	struct list		*groups;			/* The groups we are joined to */
 
 	char			*upstream;			/* Upstream interface */
-	unsigned int		upstream_id;			/* Interface ID of upstream interface */
+	uint64_t		upstream_id;			/* Interface ID of upstream interface */
 
 	bool			daemonize;			/* To Daemonize or to not to Daemonize */
 	bool			verbose;			/* Verbose Operation ? */
@@ -101,15 +117,16 @@ struct conf
 	bool			promisc;			/* Make interfaces promisc? (To be sure to receive all MLD's) */
 	
 	uint8_t			*buffer;			/* Our buffer */
-	unsigned int		bufferlen;			/* Length of the buffer */
+	uint64_t		bufferlen;			/* Length of the buffer */
 
 #ifndef ECMH_BPF
 	int			rawsocket;			/* Single RAW socket for sending and receiving everything */
+	int			__padding;
 #else
 	bool			tunnelmode;			/* Intercept&handle proto-41 packets? */
 	struct list		*locals;			/* Local devices that could have tunnels */
 	fd_set			selectset;			/* Selectset */
-	int			hifd;				/* Highest File Descriptor */
+	uint64_t		hifd;				/* Highest File Descriptor */
 #endif
 
 	FILE			*stat_file;			/* The file handle of ourdump file */
@@ -126,3 +143,4 @@ struct conf
 /* Global Stuff */
 extern struct conf *g_conf;
 
+#endif /* ECMH_H */

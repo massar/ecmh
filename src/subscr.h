@@ -7,7 +7,7 @@
 struct subscrnode
 {
 	struct in6_addr	ipv6;		/* The address that wants packets matching this S<->G */
-	unsigned int	mode;		/* MLD2_* */
+	uint64_t	mode;		/* MLD2_* */
 	time_t		refreshtime;	/* The time we last received a join for this S<->G on this interface */
 };
 

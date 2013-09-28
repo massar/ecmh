@@ -6,7 +6,7 @@
 /* The node used to hold the interfaces which a group joined */
 struct grpintnode
 {
-	unsigned int		ifindex;		/* The interface */
+	uint64_t		ifindex;		/* The interface */
 	struct list		*subscriptions;		/* Subscriber list */
 };
 
