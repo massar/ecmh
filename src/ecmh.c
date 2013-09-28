@@ -2867,6 +2867,7 @@ int main(int argc, char *argv[])
 
 	/* Free the config memory */
 	free(g_conf);
+	g_conf = NULL;
 
 	cleanpid(SIGINT);
 

@@ -16,7 +16,7 @@ void dolog(int level, const char *fmt, ...)
 	if (g_conf && g_conf->daemonize) vsyslog(LOG_LOCAL7|level, fmt, ap);
 	else
 	{
-		if (g_conf->verbose)
+		if (g_conf && g_conf->verbose)
 		{
 			printf("[%6s] ",
 				level == LOG_DEBUG ?	"debug" :
@@ -55,6 +55,7 @@ void cleanpid(int i)
 {
 	dolog(LOG_INFO, "Trying to exit, got signal %d...\n", i);
 	unlink(PIDFILE);
-	g_conf->quit = true;
+
+	if (g_conf) g_conf->quit = true;
 }
 
