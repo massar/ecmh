@@ -2859,11 +2859,18 @@ int main(int argc, char *argv[])
 	/* Free the interfaces memory block */
 	free(g_conf->ints);
 
+	list_free(g_conf->groups);
+
 	/* Close files and sockets */
 	fclose(g_conf->stat_file);
 #ifndef ECMH_BPF
 	close(g_conf->rawsocket);
 #endif
+
+	if (g_conf->buffer)
+	{
+		free(g_conf->buffer);
+	}
 
 	/* Free the config memory */
 	free(g_conf);
