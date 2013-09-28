@@ -12,7 +12,7 @@
 ECMH=ecmh
 
 # The version of this release
-ECMH_VERSION=2005.02.09
+ECMH_VERSION=2013.09.28
 export ECMH_VERSION
 
 # ECMH Compile Time Options
