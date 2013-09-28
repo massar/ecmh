@@ -1703,6 +1703,30 @@ void l2_eth(struct intnode *intn, struct ether_header *eth, const unsigned int l
 	l2_ethtype(intn, ((uint8_t *)eth + sizeof(*eth)), len-sizeof(*eth), ntohs(eth->ether_type));
 }
 
+uint8_t nibble2int(unsigned char c);
+uint8_t nibble2int(unsigned char c)
+{
+	uint8_t n;
+
+	c = tolower(c);
+
+	if (c >= '0' && c <= '9')
+	{
+		n = c - '0';
+	}
+	else if (c >= 'a' && c <= 'f')
+	{
+		n = c - 'a' + 10;
+	}
+	else
+	{
+		assert(false);
+		n = 0;
+	}
+
+	return n;
+}
+
 /* Initiliaze interfaces */
 void update_interfaces(struct intnode *intn)
 {
@@ -1712,14 +1736,13 @@ void update_interfaces(struct intnode *intn)
 	struct in6_addr		addr;
 	unsigned int		ifindex = 0;
 	bool			newintn	= false;
+#ifdef ECMH_GETIFADDR
 	bool			ignore = false;
-#ifndef ECMH_GETIFADDR
-	FILE			*file;
-	unsigned int		prefixlen, scope, flags;
-	char			devname[IFNAMSIZ];
-#else
 	struct ifaddrs		*ifap, *ifa;
-
+#else
+	FILE			*file;
+	unsigned int		prefixlen, scope, flags, i;
+	char			devname[IFNAMSIZ], buf[256];
 #endif /* !ECMH_GETIFADDR */
 	int			gotlinkl = false, gotglobal = false, gotipv4 = false;
 
@@ -1744,13 +1767,13 @@ void update_interfaces(struct intnode *intn)
 	/* Format "fe80000000000000029027fffe24bbab 02 0a 20 80     eth0" */
 	while (fgets(buf, sizeof(buf), file))
 	{
-		if (21 != sscanf( buf,
-			"%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx %x %x %x %x %8s",
-			&addr.s6_addr[ 0], &addr.s6_addr[ 1], &addr.s6_addr[ 2], &addr.s6_addr[ 3],
-			&addr.s6_addr[ 4], &addr.s6_addr[ 5], &addr.s6_addr[ 6], &addr.s6_addr[ 7],
-			&addr.s6_addr[ 8], &addr.s6_addr[ 9], &addr.s6_addr[10], &addr.s6_addr[11],
-			&addr.s6_addr[12], &addr.s6_addr[13], &addr.s6_addr[14], &addr.s6_addr[15],
-			&ifindex, &prefixlen, &scope, &flags, devname))
+		memset(&addr, 0, sizeof(addr));
+		for (i = 0; i < 16; i++)
+		{
+			addr.s6_addr[i] = (nibble2int(buf[(i*2)]) << 4) + nibble2int(buf[(i*2)+1]);
+		}
+
+		if (5 != sscanf(&buf[33], "%x %x %x %x %8s", &ifindex, &prefixlen, &scope, &flags, devname))
 		{
 			dolog(LOG_WARNING, "/proc/net/if_inet6 has a broken line, ignoring");
 			continue;
@@ -1759,7 +1782,7 @@ void update_interfaces(struct intnode *intn)
 	/* FreeBSD etc style */
 	if (getifaddrs(&ifap) == 0)
 	{
-		for (ifa=ifap;ifa;ifa=ifa->ifa_next)
+		for (ifa = ifap; ifa; ifa = ifa->ifa_next)
 		{
 			if (!ifa->ifa_addr)
 			{
@@ -1787,7 +1810,10 @@ void update_interfaces(struct intnode *intn)
 			{
 				ignore = true;
 			}
-			else ignore = false;
+			else
+			{
+				ignore = false;
+			}
 
 			dolog(LOG_DEBUG, "%s %u (%s) [%s%s%s%s ] (%u) -> %s...\n",
 				ifa->ifa_name,
@@ -1902,6 +1928,7 @@ void update_interfaces(struct intnode *intn)
 			}
 			else
 			{
+#ifdef ECMH_GETIFADDR
 				if (ifa->ifa_addr->sa_family == AF_INET)
 				{
 #ifdef ECMH_BPF
@@ -1954,24 +1981,22 @@ void update_interfaces(struct intnode *intn)
 				}
 				else if (ifa->ifa_addr->sa_family == AF_INET6)
 				{
-#ifdef DEBUG
+#endif /* ECMH_GETIFADDR */
 					char txt[INET6_ADDRSTRLEN];
 					memset(txt,0,sizeof(txt));
-					inet_ntop(ifa->ifa_addr->sa_family, &addr, txt, sizeof(txt));
-#endif
+					inet_ntop(AF_INET6, &addr, txt, sizeof(txt));
+
 					/* Update the global address */
-#ifdef DEBUG
 					dolog(LOG_DEBUG, "Updating global IPv6 address for %s: %s\n", intn->name, txt);
-#else
-					dolog(LOG_DEBUG, "Updating global IPv6 address for %s\n", intn->name);
-#endif
 					memcpy(&intn->global, &addr, sizeof(intn->global));
 					gotglobal = true;
+#ifdef ECMH_GETIFADDR
 				}
 				else
 				{
 					dolog(LOG_ERR, "Unknown Address Family %u - Ignoring\n", ifa->ifa_addr->sa_family);
 				}
+#endif
 			}
 		}
 

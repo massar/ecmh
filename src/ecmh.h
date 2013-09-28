@@ -27,6 +27,7 @@
 #include <syslog.h>
 #include <pwd.h>
 #include <getopt.h>
+#include <assert.h>
 
 #include <net/if.h>
 #include <netinet/if_ether.h>
