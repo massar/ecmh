@@ -34,12 +34,9 @@ struct list
 struct list	*list_new(void);
 void		list_free(struct list *);
 void		listnode_add(struct list *, void *);
-void		listnode_delete(struct list *, void *);
 void		list_delete (struct list *);
 void		list_delete_all_node (struct list *);
 void		list_delete_node (struct list *, struct listnode *);
-/* Move the node to the front - for int_find() - jeroen */
-void		list_movefront_node(struct list *, struct listnode *);
 
 /* List iteration macro. */
 #define LIST_LOOP(L,V,N) \

@@ -74,7 +74,6 @@ struct localnode
 
 void local_update(struct intnode *intn);
 struct localnode *local_find(struct in_addr *ipv4);
-void local_remove(struct intnode *intn);
 void local_destroy(struct localnode *localn);
 
 #endif

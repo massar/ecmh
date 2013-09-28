@@ -14,7 +14,6 @@ struct groupnode
 	uint64_t	packets;	/* Number of received packets */
 };
 
-struct groupnode *group_create(const struct in6_addr *mca);
 void group_destroy(struct groupnode *groupn);
 struct groupnode *group_find(const struct in6_addr *mca);
 struct grpintnode *groupint_get(const struct in6_addr *mca, struct intnode *interface, bool *isnew);

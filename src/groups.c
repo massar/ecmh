@@ -6,7 +6,8 @@
 #include "ecmh.h"
 
 /* Create a groupnode */
-struct groupnode *group_create(const struct in6_addr *mca)
+static struct groupnode *group_create(const struct in6_addr *mca);
+static struct groupnode *group_create(const struct in6_addr *mca)
 {
 	struct groupnode *groupn = malloc(sizeof(*groupn));
 

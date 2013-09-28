@@ -6,7 +6,8 @@
 #include "ecmh.h"
 
 #ifdef ECMH_BPF
-bool int_create_bpf(struct intnode *intn, bool tunnel)
+static bool int_create_bpf(struct intnode *intn, bool tunnel);
+static bool int_create_bpf(struct intnode *intn, bool tunnel)
 {
 	unsigned int	i;
 	char		devname[IFNAMSIZ];
@@ -509,18 +510,6 @@ struct localnode *local_find(struct in_addr *ipv4)
 		}
 	}
 	return NULL;
-}
-
-void local_remove(struct intnode *intn)
-{
-	struct localnode *localn;
-	localn = local_find(&intn->ipv4_local);
-	if (!localn) return;
-
-	dolog(LOG_DEBUG, "Remove %s from local tunnel-intercepting-interfaces\n", intn->name);
-
-	/* Remove it from the list */
-	listnode_delete(g_conf->locals, localn);
 }
 
 void local_destroy(struct localnode *localn)

@@ -25,7 +25,8 @@ void list_free(struct list *l)
 	if (l) free(l);
 }
 
-/* Allocate new listnode.  Internal use only. */
+/* Allocate new listnode */
+static struct listnode *listnode_new(void);
 static struct listnode *listnode_new(void)
 {
 	struct listnode *node;
@@ -37,6 +38,7 @@ static struct listnode *listnode_new(void)
 }
 
 /* Free listnode. */
+static void listnode_free(struct listnode *node);
 static void listnode_free(struct listnode *node)
 {
 	free(node);
@@ -59,25 +61,6 @@ void listnode_add(struct list *list, void *val)
 
 	if (list->count < 0) list->count = 0;
 	list->count++;
-}
-
-/* Delete specific date pointer from the list. */
-void listnode_delete(struct list *list, void *val)
-{
-	struct listnode *node;
-
-	for (node = list->head; node; node = node->next)
-	{
-		if (node->data != val) continue;
-
-		if (node->prev) node->prev->next = node->next;
-		else list->head = node->next;
-		if (node->next) node->next->prev = node->prev;
-		else list->tail = node->prev;
-		list->count--;
-		listnode_free(node);
-		return;
-	}
 }
 
 /* Delete all listnode from the list. */
@@ -120,27 +103,5 @@ void list_delete_node(struct list *list, struct listnode *node)
 	else list->tail = node->prev;
 	list->count--;
 	listnode_free(node);
-}
-
-/* Move the node to the front - for int_find() - jeroen */
-void list_movefront_node(struct list *list, struct listnode *node)
-{
-	/* Don't do a thing when it is already there */
-	if (list->head == node) return;
-
-	/* Delete it from the list's current position */
-	if (node->prev) node->prev->next = node->next;
-	else list->head = node->next;
-	if (node->next) node->next->prev = node->prev;
-	else list->tail = node->prev;
-
-	/* Insert it at the front */
-	if (list->head)
-	{
-		node->prev = list->head->prev;
-		list->head->prev = node;
-	}
-	node->next = list->head;
-	list->head = node;
 }
 
