@@ -75,6 +75,7 @@ struct grpintnode *groupint_get(const struct in6_addr *mca, struct intnode *inte
 {
 	struct groupnode	*groupn;
 	struct grpintnode	*grpintn;
+	uint64_t		t = gettimes();
 
 	*isnew = false;
 
@@ -95,15 +96,21 @@ struct grpintnode *groupint_get(const struct in6_addr *mca, struct intnode *inte
 	}
 
 	/* Forward it if we haven't done so for quite some time */
-	else if ((time(NULL) - groupn->lastforward) >= ECMH_SUBSCRIPTION_TIMEOUT)
+	else if ((t - groupn->lastforward) >= ECMH_SUBSCRIPTION_TIMEOUT)
 	{
-		dolog(LOG_DEBUG, "Last update was %d seconds ago -> resending\n", (int)(time(NULL) - groupn->lastforward));
+		dolog(LOG_DEBUG, "Last update was %d seconds ago -> resending\n", (int)(t - groupn->lastforward));
 		*isnew = true;
 	}
 
-	if (!groupn) return NULL;
+	if (!groupn)
+	{
+		return NULL;
+	}
 
-	if (isnew) groupn->lastforward = time(NULL);
+	if (isnew)
+	{
+		groupn->lastforward = t;
+	}
 
 	/* Find the interface in this group */
 	grpintn = grpint_find(groupn->interfaces, interface);

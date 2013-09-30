@@ -6,6 +6,16 @@
 #ifndef ECMH_H
 #define ECMH_H "ECMH"
 
+#ifdef __GNUC__
+#define PACKED __attribute__((packed))
+#define ALIGNED __attribute__((aligned))
+#define UNUSED __attribute__ ((__unused__))
+#else
+#define PACKED
+#define ALIGNED
+#define UNUSED
+#endif
+
 #include <stdint.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -28,6 +38,7 @@
 #include <pwd.h>
 #include <getopt.h>
 #include <assert.h>
+#include <inttypes.h>
 
 #include <net/if.h>
 #include <netinet/if_ether.h>
@@ -35,7 +46,7 @@
 #ifdef linux
 #include <netpacket/packet.h>
 #endif
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__MACH__)
 #include <fcntl.h>
 #include <sys/uio.h>
 #include <netinet/in_systm.h>
@@ -52,6 +63,12 @@
 #include <netinet/udp.h>
 #include <netinet/ip_icmp.h>
 #include <sys/ioctl.h>
+
+#ifdef __MACH__
+#include <mach/clock.h>
+#include <mach/mach.h>
+#endif
+
 #include "mld.h"
 
 #define PIDFILE "/var/run/ecmh.pid"
@@ -140,6 +157,10 @@ struct conf
 	uint64_t		stat_icmp_sent;			/* Number of ICMP's sent */
 	uint64_t		stat_hlim_exceeded;		/* Packets that where dropped due to hlim == 0 */
 };
+
+#ifndef ETH_P_IPV6
+#define ETH_P_IPV6	0x86dd
+#endif
 
 /* Global Stuff */
 extern struct conf *g_conf;

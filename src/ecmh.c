@@ -36,6 +36,8 @@ volatile int	g_needs_timeout = false;
  */
 static const char ipv4_6to4_relay[4] = { '\xc0', '\x58', '\x63', '\x01'};
 
+static void l2_ethtype(struct intnode *intn, const uint8_t *packet, const unsigned int len, const unsigned int ether_type);
+
 /**************************************
   Functions
 **************************************/
@@ -49,12 +51,18 @@ static uint16_t inchksum(const void *data, uint32_t length)
 	while (slen >= 2)
 	{
 		sum += *wrd++;
-		slen-=2;
+		slen -= 2;
 	}
 
-	if (slen > 0) sum+=*(const uint8_t *)wrd;
+	if (slen > 0)
+	{
+		sum += *(const uint8_t *)wrd;
+	}
 
-	while (sum >> 16) sum = (sum & 0xffff) + (sum >> 16);
+	while (sum >> 16)
+	{
+		sum = (sum & 0xffff) + (sum >> 16);
+	}
 
 	return (uint16_t)sum;
 }
@@ -87,7 +95,12 @@ static uint16_t ipv6_checksum(const struct ip6_hdr *ip6, uint8_t protocol, const
 
 	/* Take ones-complement and replace 0 with 0xFFFF. */
 	chksum = (uint16_t) ~chksum;
-	if (chksum == 0UL) chksum = 0xffffUL;
+
+	if (chksum == 0UL)
+	{
+		chksum = 0xffffUL;
+	}
+
 	return (uint16_t)chksum;
 }
 
@@ -154,11 +167,17 @@ static const char *lookup(struct lookup *l, unsigned int num);
 static const char *lookup(struct lookup *l, unsigned int num)
 {
 	unsigned int i;
+
 	for (i=0; l && l[i].desc; i++)
 	{
-		if (l[i].num != num) continue;
+		if (l[i].num != num)
+		{
+			continue;
+		}
+
 		return l[i].desc;
 	}
+
 	return "Unknown";
 }
 
@@ -168,6 +187,7 @@ static const char *icmpv6_code(unsigned int type, unsigned int code);
 static const char *icmpv6_code(unsigned int type, unsigned int code)
 {
 	struct lookup *l = NULL;
+
 	switch (type)
 	{
 		case ICMP6_DST_UNREACH:		l = icmpv6_codes_unreach;	break;
@@ -177,6 +197,7 @@ static const char *icmpv6_code(unsigned int type, unsigned int code)
 		case ICMP6_NI_REPLY:		l = icmpv6_codes_ni;		break;
 		case ICMP6_ROUTER_RENUMBERING:	l = icmpv6_codes_renumber;	break;
 	}
+
 	return lookup(l, code);
 }
 
@@ -210,7 +231,7 @@ static uint8_t nibble2int(unsigned char c)
 static void update_interfaces(struct intnode *intn);
 static void update_interfaces(struct intnode *intn)
 {
-	static time_t		last_update = 0;
+	static uint64_t		last_update = 0;
 
 	struct intnode		*specific = intn;
 	struct in6_addr		addr;
@@ -225,11 +246,16 @@ static void update_interfaces(struct intnode *intn)
 	char			devname[IFNAMSIZ], buf[256];
 #endif /* !ECMH_GETIFADDR */
 	int			gotlinkl = false, gotglobal = false, gotipv4 = false;
+	uint64_t		t;
 
 	/* Only update every 5 minutes to avoid rerunning it every packet */
-	if (last_update+(5*60) > time(NULL)) return;
+	t = gettimes();
+	if ((last_update + (5*60)) > t)
+	{
+		return;
+	}
 
-	last_update = time(NULL);
+	last_update = t;
 
 	dolog(LOG_DEBUG, "Updating Interfaces\n");
 
@@ -248,6 +274,7 @@ static void update_interfaces(struct intnode *intn)
 	while (fgets(buf, sizeof(buf), file))
 	{
 		memset(&addr, 0, sizeof(addr));
+
 		for (i = 0; i < 16; i++)
 		{
 			addr.s6_addr[i] = (nibble2int(buf[(i*2)]) << 4) + nibble2int(buf[(i*2)+1]);
@@ -258,6 +285,7 @@ static void update_interfaces(struct intnode *intn)
 			dolog(LOG_WARNING, "/proc/net/if_inet6 has a broken line, ignoring");
 			continue;
 		}
+
 #else /* !ECMH_GETIFADDR */
 	/* FreeBSD etc style */
 	if (getifaddrs(&ifap) == 0)
@@ -327,15 +355,20 @@ static void update_interfaces(struct intnode *intn)
 			}
 
 			ifindex = if_nametoindex(ifa->ifa_name);
+
 			if (ifa->ifa_addr->sa_family == AF_INET6)
 			{
-				memcpy(&addr,
-					&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr, sizeof(addr));
+				struct sockaddr_in6 s;
+
+				memcpy(&s, (void *)ifa->ifa_addr, sizeof(s));;
+				memcpy(&addr, &s.sin6_addr, sizeof(addr));
 			}
 			else
 			{
-				memcpy(&addr,
-					&((struct sockaddr_in *)ifa->ifa_addr)->sin_addr, sizeof(addr));
+				struct sockaddr_in s;
+
+				memcpy(&s, (void *)ifa->ifa_addr, sizeof(s));;
+				memcpy(&addr, &s.sin_addr, sizeof(addr));
 			}
 
 #endif /* !ECMH_GETIFADDR */
@@ -372,7 +405,11 @@ static void update_interfaces(struct intnode *intn)
 		if (specific)
 		{
 			intn = specific;
-			if (intn->ifindex == ifindex) continue;
+
+			if (intn->ifindex == ifindex)
+			{
+				continue;
+			}
 		}
 		else
 		{
@@ -429,7 +466,7 @@ static void update_interfaces(struct intnode *intn)
 #else
 					dolog(LOG_DEBUG, "Updating local IPv4 address for %s\n", intn->name);
 #endif
-					for (num=0;num<INTNODE_MAXIPV4;num++)
+					for (num = 0; num < INTNODE_MAXIPV4; num++)
 					{
 						/* Empty spot ? */
 						if (memcmp(&intn->ipv4_local[num], &any, sizeof(any)) == 0)
@@ -463,6 +500,7 @@ static void update_interfaces(struct intnode *intn)
 				{
 #endif /* ECMH_GETIFADDR */
 					char txt[INET6_ADDRSTRLEN];
+
 					memset(txt,0,sizeof(txt));
 					inet_ntop(AF_INET6, &addr, txt, sizeof(txt));
 
@@ -611,6 +649,7 @@ static void sendpacket6(struct intnode *intn, const struct ip6_hdr *iph, const u
 		hdr_ip.ip_ttl	= 100;
 		hdr_ip.ip_p	= IPPROTO_IPV6;
 		hdr_ip.ip_sum	= 0;
+
 		/* The first ipv4_local is the interface, the rest should be empty for PtP interfaces */
 		memcpy(&hdr_ip.ip_src, &intn->ipv4_local[0], sizeof(hdr_ip.ip_src));
 		memcpy(&hdr_ip.ip_dst, &intn->ipv4_remote, sizeof(hdr_ip.ip_dst));
@@ -653,7 +692,11 @@ static void sendpacket6(struct intnode *intn, const struct ip6_hdr *iph, const u
 			/* Destroy the interface itself */
 			int_destroy(intn);
 		}
-		else dolog(LOG_DEBUG, "[%-5s] sending %u bytes failed, mtu = %u: %s (%d)\n", intn->name, len, intn->mtu, strerror(errno), errno);
+		else
+		{
+			dolog(LOG_DEBUG, "[%-5s] sending %u bytes failed, mtu = %u: %s (%d)\n", intn->name, len, intn->mtu, strerror(errno), errno);
+		}
+
 		return;
 	}
 
@@ -664,6 +707,7 @@ static void sendpacket6(struct intnode *intn, const struct ip6_hdr *iph, const u
 	/* Update interface statistics */
 	intn->stat_bytes_sent+=len;
 	intn->stat_packets_sent++;
+
 	return;
 }
 
@@ -821,6 +865,7 @@ static void mld_send_query(struct intnode *intn, const struct in6_addr *mca, con
 			packetlen		= sizeof(packet) - sizeof(packet.src);
 			packet.mldq.nsrcs	= htons(0);
 		}
+
 		packet.mldq.suppress		= suppression ? 1 : 0;
 		packet.mldq.qrv			= ECMH_ROBUSTNESS_FACTOR;
 		packet.mldq.qqic		= ECMH_SUBSCRIPTION_TIMEOUT;
@@ -835,7 +880,7 @@ static void mld_send_query(struct intnode *intn, const struct in6_addr *mca, con
 	if (g_conf->mld1only)
 	{
 #endif
-	dolog(LOG_DEBUG, "Sending MLDv1 Query on %s/%u\n", intn->name, intn->ifindex);
+		dolog(LOG_DEBUG, "Sending MLDv1 Query on %s/%u\n", intn->name, intn->ifindex);
 #ifdef ECMH_SUPPORT_MLD2
 	}
 	else
@@ -938,7 +983,7 @@ static void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 		struct mld2_report	mld2r;
 	}				*packet;
 	struct mld2_grec		*grec = NULL;
-	struct in6_addr			*src = NULL;
+	void				*src = NULL;
 	bool				any = false;
 
 	if (intn->mtu < sizeof(*packet))
@@ -1011,7 +1056,10 @@ static void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 		 * don't count anything else
 		 */
 		if (	(mca && !IN6_ARE_ADDR_EQUAL(mca, &groupn->mca)) ||
-			groupn->interfaces->count == 0) continue;
+			groupn->interfaces->count == 0)
+		{
+			continue;
+		}
 
 		/* No sources yet for this grec */
 		src = NULL;
@@ -1020,13 +1068,19 @@ static void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 		LIST_LOOP(groupn->interfaces, grpintn, gn)
 		{
 			/* Skip the sending interface */
-			if (grpintn->ifindex == intn->ifindex) continue;
+			if (grpintn->ifindex == intn->ifindex)
+			{
+				continue;
+			}
 
 			/* Go through the subscriptions */
 			LIST_LOOP(grpintn->subscriptions, subscrn, sn)
 			{
 				/* Exclusion record? -> Skip it, thus excluding it */
-				if (subscrn->mode == MLD2_MODE_IS_EXCLUDE) continue;
+				if (subscrn->mode == MLD2_MODE_IS_EXCLUDE)
+				{
+					continue;
+				}
 
 				/* Any sources already? */
 				if (src)
@@ -1055,10 +1109,10 @@ static void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 					/* Don't add sources twice (seperate interfaces might want the same S<->G) */
 					for (i=0; !any && src && (i < grec->grec_nsrcs); i++)
 					{
-						src = (struct in6_addr *)((char *)grec) + sizeof(*grec) + (sizeof(*src) * grec->grec_nsrcs);
+						src = ((char *)grec) + sizeof(*grec) + (sizeof(struct in6_addr) * grec->grec_nsrcs);
 
 						/* Skip it if it already exists */
-						if (memcmp(&subscrn->ipv6, src, sizeof(*src)) == 0)
+						if (memcmp(&subscrn->ipv6, src, sizeof(subscrn->ipv6)) == 0)
 						{
 							dolog(LOG_DEBUG, "Not adding source address as we have ANY already added\n");
 							src = NULL;
@@ -1067,17 +1121,26 @@ static void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 					}
 
 					/* Skip it */
-					if (!src) continue;
+					if (!src)
+					{
+						continue;
+					}
 				}
 
 				/* Packet with at least one grec and one or more src's, excluding ip6 header */
-				if (grec) length = (((char *)grec) - ((char *)packet) + sizeof(*grec) + (sizeof(*src) * (grec->grec_nsrcs)) - sizeof(packet->ip6));
+				if (grec)
+				{
+					length = (((char *)grec) - ((char *)packet) + sizeof(*grec) + (sizeof(struct in6_addr) * (grec->grec_nsrcs)) - sizeof(packet->ip6));
+				}
 				/* Empty packet, no grec+src's */
-				else length = sizeof(*packet);
+				else
+				{
+					length = sizeof(*packet);
+				}
 
 				/* Would adding it not fit? -> Send it out */
 				if ((length + sizeof(packet->ip6) + (grec ? 0 : sizeof(*grec)) +
-					   (any || IN6_IS_ADDR_UNSPECIFIED(&subscrn->ipv6) ? 0 : sizeof(*src))) > intn->mtu)
+				    (any || IN6_IS_ADDR_UNSPECIFIED(&subscrn->ipv6) ? 0 : sizeof(struct in6_addr))) > intn->mtu)
 				{
 					if (!grec)
 					{
@@ -1114,13 +1177,15 @@ static void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 				{
 					/* A new grec */
 					packet->mld2r.ngrec++;
+
 					/* Already a grec in the packet? */
 					if (grec)
 					{
 						/* Fixup endianness */
 						grec->grec_nsrcs = htons(grec->grec_nsrcs);
+
 						/* Next grec */
-						grec = (struct mld2_grec *)(((char *)grec) + sizeof(*grec) + (sizeof(*src) * grec->grec_nsrcs));
+						grec = (struct mld2_grec *)(((char *)grec) + sizeof(*grec) + (sizeof(struct in6_addr) * grec->grec_nsrcs));
 					}
 					else
 					{
@@ -1145,7 +1210,8 @@ static void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 				if (!IN6_IS_ADDR_UNSPECIFIED(&subscrn->ipv6))
 				{
 					/* First/Next address */
-					src = (struct in6_addr *)(((char *)grec) + sizeof(*grec) + (sizeof(*src) * grec->grec_nsrcs));
+					src = (struct in6_addr *)(((char *)grec) + sizeof(*grec) + (sizeof(struct in6_addr) * grec->grec_nsrcs));
+
 					/* An additional source */
 					grec->grec_nsrcs++;
 
@@ -1153,10 +1219,13 @@ static void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 					grec->grec_type = MLD2_MODE_IS_INCLUDE;
 
 					/* Append the source address */
-					memcpy(src, &subscrn->ipv6, sizeof(*src));
+					memcpy(src, &subscrn->ipv6, sizeof(struct in6_addr));
 				}
-				/* We added a any address, thus don't add anything else */
-				else any = true;
+				else
+				{
+					/* We added a 'any' address, thus don't add anything else */
+					any = true;
+				}
 			}
 		}
 	}
@@ -1169,7 +1238,7 @@ static void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 		return;
 	}
 
-	length = (((char *)grec) - ((char *)packet) + sizeof(*grec) + (sizeof(*src) * (grec->grec_nsrcs)) - sizeof(packet->ip6));
+	length = (((char *)grec) - ((char *)packet) + sizeof(*grec) + (sizeof(struct in6_addr) * (grec->grec_nsrcs)) - sizeof(packet->ip6));
 
 	/* Take care of endianess */
 	packet->mld2r.ngrec	= htons(packet->mld2r.ngrec);
@@ -1205,6 +1274,7 @@ static void mld_send_report(struct intnode *intn, const struct in6_addr *mca)
 	{
 		mld1_send_report(intn, mca);
 	}
+
 #ifdef ECMH_SUPPORT_MLD2
 	if (!g_conf->mld1only && (g_conf->mld2only || intn->mld_version == 0 || intn->mld_version == 2))
 	{
@@ -1222,7 +1292,7 @@ static void mld_send_report_all(struct intnode *interface, const struct in6_addr
 	dolog(LOG_DEBUG, "Broadcasting group to all interfaces but %s...\n", interface->name);
 
 	/* Broadcast that we want this new group */
-	for (i=0; i<g_conf->maxinterfaces; i++)
+	for (i = 0; i < g_conf->maxinterfaces; i++)
 	{
 		intn = &g_conf->ints[i];
 
@@ -1236,6 +1306,7 @@ static void mld_send_report_all(struct intnode *interface, const struct in6_addr
 		/* Send the MLD Report */
 		mld_send_report(intn, mca);
 	}
+
 	dolog(LOG_DEBUG, "Broadcasting group to all interfaces but %s... - done\n", interface->name);
 }
 
@@ -1266,10 +1337,14 @@ static void l4_ipv4_proto41(struct intnode *intn, struct ip *iph, const uint8_t 
 	struct intnode		*tun;
 
 	/* Ignore when we are not in tunnelmode */
-	if (!g_conf->tunnelmode) return;
+	if (!g_conf->tunnelmode)
+	{
+		return;
+	}
 
 	/* Is this a locally sourced packet? */
 	localn = local_find(&iph->ip_src);
+
 	/* Ignore when local */
 	if (localn)
 	{
@@ -1290,32 +1365,38 @@ static void l4_ipv4_proto41(struct intnode *intn, struct ip *iph, const uint8_t 
 		/* Try to find it again */
 		tun = int_find_ipv4(false, &iph->ip_src);
 	}
+
 	if (!tun)
 	{
 		if (g_conf->verbose)
 		{
 	   	 	char buf[1024],buf2[1024];
+
 	    		inet_ntop(AF_INET, &iph->ip_src, (char *)&buf, sizeof(buf));
 	    		inet_ntop(AF_INET, &iph->ip_dst, (char *)&buf2, sizeof(buf));
 			dolog(LOG_ERR, "Couldn't find proto-41 tunnel %s->%s\n", buf, buf2);
 		}
+
 		return;
 	}
 
 	/* Send it through our decoder again, looking as it is a native IPv6 received on intn ;) */
 	dolog(LOG_DEBUG, "Proto-41 from %08x->%08x on %s, tunnel %s\n", iph->ip_src, iph->ip_dst, intn->name, tun->name);
 	l2_ethtype(tun, packet, len, ETH_P_IPV6);
+
 	return;
 }
 #endif /* ECMH_BPF */
 
 /* IPv4 */
+#if defined(DEBUG) || defined(ECMH_SUPPORT_IPV4)
 static void l3_ipv4(struct intnode *intn, struct ip *iph, const uint16_t len);
 static void l3_ipv4(struct intnode *intn, struct ip *iph, const uint16_t len)
+#else
+static void l3_ipv4(struct intnode UNUSED *intn, struct ip *iph, const uint16_t len);
+static void l3_ipv4(struct intnode UNUSED *intn, struct ip *iph, const uint16_t len)
+#endif
 {
-	/* Sometimes not used, makes compiler a bit happier */
-	intn = intn;
-
 	if (iph->ip_v != 4)
 	{
 		D(dolog(LOG_DEBUG, "%5s L3:IPv4: IP version %u not supported\n", intn->name, iph->ip_v);)
@@ -1357,13 +1438,19 @@ static void l3_ipv4(struct intnode *intn, struct ip *iph, const uint16_t len)
 
 	/* Go to Layer 4 */
 #ifdef ECMH_SUPPORT_IPV4
-	if (iph->ip_p == 1) l4_ipv4_icmp(intn, iph, ((uint8_t *iph)+(4*iph->ip_hl), len-(4*iph->ip_hl));
+	if (iph->ip_p == 1)
+	{
+		l4_ipv4_icmp(intn, iph, ((uint8_t *)iph) + (4 * iph->ip_hl), len - (4 * iph->ip_hl));
+	}
 #ifdef ECMH_BPF
 	else
 #endif /* ECMH_BPF */
 #endif /* ECMH_SUPPORT_IPV4 */
 #ifdef ECMH_BPF
-	if (iph->ip_p == IPPROTO_IPV6) l4_ipv4_proto41(intn, iph, ((uint8_t *)iph)+(4*iph->ip_hl), len-(4*iph->ip_hl));
+	if (iph->ip_p == IPPROTO_IPV6)
+	{
+		l4_ipv4_proto41(intn, iph, ((uint8_t *)iph) + (4 * iph->ip_hl), len - (4 * iph->ip_hl));
+	}
 #endif /* ECMH_BPF */
 }
 
@@ -1371,6 +1458,7 @@ static void mld_log(unsigned int level, const char *fmt, const struct in6_addr *
 static void mld_log(unsigned int level, const char *fmt, const struct in6_addr *i_mca, const struct intnode *intn)
 {
 	char mca[INET6_ADDRSTRLEN];
+
 	memset(mca,0,sizeof(mca));
 	inet_ntop(AF_INET6, i_mca, mca, sizeof(mca));
 	dolog(level, fmt, mca, intn->name, intn->ifindex);
@@ -1408,7 +1496,10 @@ static void l4_ipv6_icmpv6_mld1_report(struct intnode *intn, struct mld1 *mld1)
 	 */
 	if (	!IN6_IS_ADDR_MULTICAST(&mld1->mca) ||
 		IN6_IS_ADDR_MC_NODELOCAL(&mld1->mca) ||
-		IN6_IS_ADDR_MC_LINKLOCAL(&mld1->mca)) return;
+		IN6_IS_ADDR_MC_LINKLOCAL(&mld1->mca))
+	{
+		return;
+	}
 
 	/* Find the grpintnode or create it */
 	grpintn = groupint_get(&mld1->mca, intn, &isnew);
@@ -1427,7 +1518,10 @@ static void l4_ipv6_icmpv6_mld1_report(struct intnode *intn, struct mld1 *mld1)
 		return;
 	}
 
-	if (isnew) mld_send_report_all(intn, &mld1->mca);
+	if (isnew)
+	{
+		mld_send_report_all(intn, &mld1->mca);
+	}
 
 	return;
 }
@@ -1463,7 +1557,10 @@ static void l4_ipv6_icmpv6_mld1_reduction(struct intnode *intn, struct mld1 *mld
 	 */
 	if (	!IN6_IS_ADDR_MULTICAST(&mld1->mca) ||
 		IN6_IS_ADDR_MC_NODELOCAL(&mld1->mca) ||
-		IN6_IS_ADDR_MC_LINKLOCAL(&mld1->mca)) return;
+		IN6_IS_ADDR_MC_LINKLOCAL(&mld1->mca))
+	{
+		return;
+	}
 
 	/* Find the groupnode */
 	groupn = group_find(&mld1->mca);
@@ -1611,7 +1708,7 @@ static void l4_ipv6_icmpv6_mld2_report(struct intnode *intn, struct mld2_report 
 		}
 		else
 		{
-			if ((((char *)src)-((char *)mld2r) + (nsrcs*sizeof(*src))) > plen)
+			if ((((char *)src) - ((char *)mld2r) + (nsrcs * sizeof(*src))) > plen)
 			{
 				dolog(LOG_ERR, "Ignoring packet with invalid number (%u) of sources (would exceed packetlength)\n", nsrcs);
 				return;
@@ -1639,7 +1736,10 @@ static void l4_ipv6_icmpv6_mld2_report(struct intnode *intn, struct mld2_report 
 			}
 		}
 
-		if (isnew) mld_send_report_all(intn, &grec->grec_mca);
+		if (isnew)
+		{
+			mld_send_report_all(intn, &grec->grec_mca);
+		}
 
 		/* Next grec, also skip the auxwords */
 		grec = (struct mld2_grec *)(((char *)src) + grec->grec_auxwords);
@@ -1710,7 +1810,10 @@ static void l4_ipv6_icmpv6_mld_query(struct intnode *intn, const uint16_t plen)
 			LIST_LOOP(groupn->interfaces, grpintn, gn)
 			{
 				/* We only are sending for this interface */
-				if (grpintn->ifindex != intn->ifindex) continue;
+				if (grpintn->ifindex != intn->ifindex)
+				{
+					continue;
+				}
 	
 				/* Report this group to the querying router */
 				mld_send_report(intn, &groupn->mca);
@@ -1723,7 +1826,10 @@ static void l4_ipv6_icmpv6_mld_query(struct intnode *intn, const uint16_t plen)
 		/* Send all the groups to this interface */
 		mld2_send_report(intn, NULL);
 	}
-	else dolog(LOG_DEBUG, "Did not answer query on %s\n", intn->name);
+	else
+	{
+		dolog(LOG_DEBUG, "Did not answer query on %s\n", intn->name);
+	}
 #endif /* ECMH_SUPPORT_MLD2 */
 
 	return;
@@ -1759,13 +1865,17 @@ static void l4_ipv6_multicast(struct intnode *intn, struct ip6_hdr *iph, const u
 		IN6_IS_ADDR_UNSPECIFIED(&iph->ip6_dst) ||
 		IN6_IS_ADDR_LINKLOCAL(&iph->ip6_src) ||
 		IN6_IS_ADDR_MC_NODELOCAL(&iph->ip6_dst) ||
-		IN6_IS_ADDR_MC_LINKLOCAL(&iph->ip6_dst)) return;
+		IN6_IS_ADDR_MC_LINKLOCAL(&iph->ip6_dst))
+	{
+		return;
+	}
 #if 0
 D(
 	{
 		/* DEBUG - Causes a lot of debug output - thus disabled even for debugging */
 		char src[INET6_ADDRSTRLEN];
 		char dst[INET6_ADDRSTRLEN];
+
 		inet_ntop(AF_INET6, &iph->ip6_src, src, sizeof(src));
 		inet_ntop(AF_INET6, &iph->ip6_dst, dst, sizeof(dst));
 		dolog(LOG_DEBUG, "%5s L3:IPv6: IPv%0x %40s %40s %4u %u\n", intn->name, (int)((iph->ip6_vfc>>4)&0x0f), src, dst, ntohs(iph->ip6_plen), iph->ip6_nxt);
@@ -1782,9 +1892,10 @@ D(
 #if 0
 		char src[INET6_ADDRSTRLEN];
 		char dst[INET6_ADDRSTRLEN];
+
 		inet_ntop(AF_INET6, &iph->ip6_src, src, sizeof(src));
 		inet_ntop(AF_INET6, &iph->ip6_dst, dst, sizeof(dst));
-		dolog(LOG_DEBUG, "No subscriptions for %s (sent by %s)\n",  dst, src);
+		dolog(LOG_DEBUG, "No subscriptions for %s (sent by %s)\n", dst, src);
 #endif
 		return;
 	}
@@ -1796,14 +1907,20 @@ D(
 	LIST_LOOP(groupn->interfaces, grpintn, in)
 	{
 		/* Don't send to the interface this packet originated from */
-		if (intn->ifindex == grpintn->ifindex) continue;
+		if (intn->ifindex == grpintn->ifindex)
+		{
+			continue;
+		}
 
 		/* Check the subscriptions for this group */
 		LIST_LOOP(grpintn->subscriptions, subscrn, in2)
 		{
 			/* Unspecified or specific subscription to this address? */
 			if (	!IN6_ARE_ADDR_EQUAL(&subscrn->ipv6, &in6addr_any) &&
-				!IN6_ARE_ADDR_EQUAL(&subscrn->ipv6, &iph->ip6_src)) continue;
+				!IN6_ARE_ADDR_EQUAL(&subscrn->ipv6, &iph->ip6_src))
+			{
+				continue;
+			}
 
 			/*
 			 * If it was explicitly requested to include
@@ -1812,11 +1929,17 @@ D(
 			 * This is the case when an MLDv1 listener
 			 * is on the link too for example.
 			 */
-			if (subscrn->mode != MLD2_MODE_IS_INCLUDE) continue;
+			if (subscrn->mode != MLD2_MODE_IS_INCLUDE)
+			{
+				continue;
+			}
 
 			/* Get the interface */
 			interface = int_find(grpintn->ifindex);
-			if (!interface) continue;
+			if (!interface)
+			{
+				continue;
+			}
 
 			/* Send the packet to this interface */
 			sendpacket6(interface, iph, len);
@@ -1895,52 +2018,67 @@ static void l4_ipv6_icmpv6(struct intnode *intn, struct ip6_hdr *iph, const uint
 		 */
 
 		/* Decrease the hoplimit, but only if not 0 yet */
-		if (iph->ip6_hlim > 0) iph->ip6_hlim--;
-		/*else dolog(LOG_DEBUG, "Hoplimit for ICMPv6 packet was already %u\n", iph->ip6_hlim);*/
+		if (iph->ip6_hlim > 0)
+		{
+			iph->ip6_hlim--;
+		}
+		else
+		{
+			/* dolog(LOG_DEBUG, "Hoplimit for ICMPv6 packet was already %u\n", iph->ip6_hlim); */
+		}
+
 		if (iph->ip6_hlim == 0)
 		{
 			g_conf->stat_hlim_exceeded++;
+
 			/* Send a time_exceed_transit error */
 			icmp6_send(intn, &iph->ip6_src, ICMP6_ECHO_REPLY, ICMP6_TIME_EXCEED_TRANSIT, &icmpv6->icmp6_data32, plen-sizeof(*icmpv6)+sizeof(icmpv6->icmp6_data32));
 			return;
 		}
-		/* Send this packet along it's way */
-		else l4_ipv6_multicast(intn, iph, len);
-	}
-	else
-	{
-		if (!(IN6_IS_ADDR_LINKLOCAL(&iph->ip6_src)))
-		{
-			mld_log(LOG_WARNING, "Ignoring non-LinkLocal MLD from %s received on %s/%u\n", &iph->ip6_src, intn);
-			return;
-		}
-
-		if (icmpv6->icmp6_type == ICMP6_MEMBERSHIP_REPORT)
-		{
-			l4_ipv6_icmpv6_mld1_report(intn, (struct mld1 *)icmpv6);
-		}
-		else if (icmpv6->icmp6_type == ICMP6_MEMBERSHIP_REDUCTION)
-		{
-			l4_ipv6_icmpv6_mld1_reduction(intn, (struct mld1 *)icmpv6);
-		}
-#ifdef ECMH_SUPPORT_MLD2
-		else if (icmpv6->icmp6_type == ICMP6_V2_MEMBERSHIP_REPORT ||
-			 icmpv6->icmp6_type == ICMP6_V2_MEMBERSHIP_REPORT_EXP)
-		{
-			l4_ipv6_icmpv6_mld2_report(intn, (struct mld2_report *)icmpv6, plen);
-		}
-#endif /* ECMH_SUPPORT_MLD2 */
-		else if (icmpv6->icmp6_type == ICMP6_MEMBERSHIP_QUERY)
-		{
-			l4_ipv6_icmpv6_mld_query(intn, plen);
-		}
 		else
 		{
-			dolog(LOG_DEBUG, "ICMP type %s (%u), %s (%u) got through\n",
-				icmpv6_type(icmpv6->icmp6_type), icmpv6->icmp6_type,
-				icmpv6_code(icmpv6->icmp6_type, icmpv6->icmp6_code), icmpv6->icmp6_code);
+			/* Send this packet along it's way */
+			l4_ipv6_multicast(intn, iph, len);
 		}
+
+		/* Done */
+		return;
 	}
+
+	if (!(IN6_IS_ADDR_LINKLOCAL(&iph->ip6_src)))
+	{
+		mld_log(LOG_WARNING, "Ignoring non-LinkLocal MLD from %s received on %s/%u\n", &iph->ip6_src, intn);
+		return;
+	}
+
+	switch (icmpv6->icmp6_type)
+	{
+	case ICMP6_MEMBERSHIP_REPORT:
+		l4_ipv6_icmpv6_mld1_report(intn, (struct mld1 *)icmpv6);
+		break;
+
+	case ICMP6_MEMBERSHIP_REDUCTION:
+		l4_ipv6_icmpv6_mld1_reduction(intn, (struct mld1 *)icmpv6);
+		break;
+
+#ifdef ECMH_SUPPORT_MLD2
+	case ICMP6_V2_MEMBERSHIP_REPORT:
+	case ICMP6_V2_MEMBERSHIP_REPORT_EXP:
+		l4_ipv6_icmpv6_mld2_report(intn, (struct mld2_report *)icmpv6, plen);
+		break;
+#endif /* ECMH_SUPPORT_MLD2 */
+
+	case ICMP6_MEMBERSHIP_QUERY:
+		l4_ipv6_icmpv6_mld_query(intn, plen);
+		break;
+
+	default:
+		dolog(LOG_DEBUG, "ICMP type %s (%u), %s (%u) got through\n",
+			icmpv6_type(icmpv6->icmp6_type), icmpv6->icmp6_type,
+			icmpv6_code(icmpv6->icmp6_type, icmpv6->icmp6_code), icmpv6->icmp6_code);
+		break;
+	}
+
 	return;
 }
 
@@ -1959,7 +2097,7 @@ static void l3_ipv6(struct intnode *intn, struct ip6_hdr *iph, const uint16_t le
 	 */
 	if (!IN6_IS_ADDR_MULTICAST(&iph->ip6_dst))
 	{
-		/* printf("Address is not multicast!\n"); */
+		/* dolog(LOG_ERR, "Address is not multicast!\n"); */
 		return;
 	}
 
@@ -1973,6 +2111,7 @@ static void l3_ipv6(struct intnode *intn, struct ip6_hdr *iph, const uint16_t le
 
 	/* Save the type of the next header */
 	ipe_type = iph->ip6_nxt;
+
 	/* Step to the next header */
 	ipe = (struct ip6_ext *)(((char *)iph) + sizeof(*iph));
 	plen = ntohs(iph->ip6_plen);
@@ -2011,15 +2150,24 @@ static void l3_ipv6(struct intnode *intn, struct ip6_hdr *iph, const uint16_t le
 	if (IN6_IS_ADDR_MULTICAST(&iph->ip6_dst))
 	{
 		/* Decrease the hoplimit, but only if not 0 yet */
-		if (iph->ip6_hlim > 0) iph->ip6_hlim--;
-		D(else dolog(LOG_DEBUG, "Hoplimit for UDP packet was already %u\n", iph->ip6_hlim);)
+		if (iph->ip6_hlim > 0)
+		{
+			iph->ip6_hlim--;
+		}
+		else
+		{
+			D(dolog(LOG_DEBUG, "Hoplimit for UDP packet was already %u\n", iph->ip6_hlim);)
+		}
+
 		if (iph->ip6_hlim == 0)
 		{
 			g_conf->stat_hlim_exceeded++;
-			return;
+		}
+		else
+		{
+			l4_ipv6_multicast(intn, iph, len);
 		}
 
-		l4_ipv6_multicast(intn, iph, len);
 		return;
 	}
 
@@ -2027,18 +2175,23 @@ static void l3_ipv6(struct intnode *intn, struct ip6_hdr *iph, const uint16_t le
 	return;
 }
 
-static void l2_ethtype(struct intnode *intn, const uint8_t *packet, const unsigned int len, const unsigned int ether_type);
 static void l2_ethtype(struct intnode *intn, const uint8_t *packet, const unsigned int len, const unsigned int ether_type)
 {
-	if (ether_type == ETH_P_IP)
+	switch (ether_type)
 	{
+	case ETH_P_IP:
+		/* Might have proto-41 tunnels in there */
 		l3_ipv4(intn, (struct ip	*)packet, len);
-	}
-	else if (ether_type == ETH_P_IPV6)
-	{
+		break;
+
+	case ETH_P_IPV6:
 		l3_ipv6(intn, (struct ip6_hdr	*)packet, len);
+		break;
+
+	default:
+		/* We don't care about anything else... */
+		break;
 	}
-	/* We don't care about anything else... */
 }
 
 #ifdef ECMH_BPF
@@ -2095,7 +2248,7 @@ static void init(void)
 	g_conf->groups->del		= (void(*)(void *))group_destroy;
 
 	/* Initialize our counters */
-	g_conf->stat_starttime		= time(NULL);
+	g_conf->stat_starttime		= gettimes();
 	g_conf->stat_packets_received	= 0;
 	g_conf->stat_packets_sent	= 0;
 	g_conf->stat_bytes_received	= 0;
@@ -2142,7 +2295,7 @@ static void sigusr1(int i)
 	struct listnode		*gn;
 	struct subscrnode	*subscrn;
 	struct listnode		*ssn;
-	time_t			time_tee;
+	uint64_t		time_tee;
 	char			addr[INET6_ADDRSTRLEN];
 	unsigned int		subscriptions = 0, j, count;
 	unsigned int		uptime_s, uptime_m, uptime_h, uptime_d;
@@ -2151,7 +2304,7 @@ static void sigusr1(int i)
 	signal(i, SIG_IGN);
 
 	/* Get the current time */
-	time_tee  = time(NULL);
+	time_tee  = gettimes();
 	uptime_s  = time_tee - g_conf->stat_starttime;
 	uptime_d  = uptime_s / (24*60*60);
 	uptime_s -= uptime_d *  24*60*60;
@@ -2173,6 +2326,7 @@ static void sigusr1(int i)
 	LIST_LOOP(g_conf->groups, groupn, ln)
 	{
 		inet_ntop(AF_INET6, &groupn->mca, addr, sizeof(addr));
+
 		fprintf(g_conf->stat_file, "Group : %s\n", addr);
 		fprintf(g_conf->stat_file, "\tBytes  : %" PRIu64 "\n", groupn->bytes);
 		fprintf(g_conf->stat_file, "\tPackets: %" PRIu64 "\n", groupn->packets);
@@ -2180,7 +2334,10 @@ static void sigusr1(int i)
 		LIST_LOOP(groupn->interfaces, grpintn, gn)
 		{
 			intn = int_find(grpintn->ifindex);
-			if (!intn) continue;
+			if (!intn)
+			{
+				continue;
+			}
 
 			fprintf(g_conf->stat_file, "\tInterface: %s (%" PRIi64 ")\n",
 				intn->name, grpintn->subscriptions->count);
@@ -2188,7 +2345,11 @@ static void sigusr1(int i)
 			LIST_LOOP(grpintn->subscriptions, subscrn, ssn)
 			{
 				int d = time_tee - subscrn->refreshtime;
-				if (d < 0) d = -i;
+
+				if (d < 0)
+				{
+					d = -i;
+				}
 
 				inet_ntop(AF_INET6, &subscrn->ipv6, addr, sizeof(addr));
 				fprintf(g_conf->stat_file, "\t\t%s %s (%u seconds old)\n",
@@ -2199,6 +2360,7 @@ static void sigusr1(int i)
 				subscriptions++;
 			}
 		}
+
 		fprintf(g_conf->stat_file, "\n");
 	}
 
@@ -2212,26 +2374,30 @@ static void sigusr1(int i)
 	for (count=0, j=0; j < g_conf->maxinterfaces; j++)
 	{
 		intn = &g_conf->ints[j];
-		if (intn->mtu == 0) continue;
+
+		if (intn->mtu == 0)
+		{
+			continue;
+		}
 
 		count++;
 
 		fprintf(g_conf->stat_file, "Interface: %s\n", intn->name);
-		fprintf(g_conf->stat_file, "  Index number           : %u\n", intn->ifindex);
-		fprintf(g_conf->stat_file, "  MTU                    : %u\n", intn->mtu);
+		fprintf(g_conf->stat_file, "  Index number           : %" PRIu64 "\n", intn->ifindex);
+		fprintf(g_conf->stat_file, "  MTU                    : %" PRIu64 "\n", intn->mtu);
 
 #ifdef ECMH_BPF
 		/* Tunnel has a master interface? */
 		if (intn->master)
 		{
 			inet_ntop(AF_INET, &intn->master->ipv4_local, addr, sizeof(addr));
-			fprintf(g_conf->stat_file, "  Master interface       : %s (%u/%s)\n", intn->master->name, intn->master->ifindex, addr);
+			fprintf(g_conf->stat_file, "  Master interface       : %s (%" PRIu64 "/%s)\n", intn->master->name, intn->master->ifindex, addr);
 			inet_ntop(AF_INET, &intn->ipv4_remote, addr, sizeof(addr));
 			fprintf(g_conf->stat_file, "  IPv4 Remote            : %s\n", addr);
 		}
 #endif /* ECMH_BPF */
 
-		fprintf(g_conf->stat_file, "  Interface Type         : %s (%u)\n",
+		fprintf(g_conf->stat_file, "  Interface Type         : %s (%" PRIu64 ")\n",
 #ifndef ECMH_BPF
 			(intn->hwaddr.sa_family == ARPHRD_ETHER ? "Ethernet" : 
 			 (intn->hwaddr.sa_family == ARPHRD_SIT ? "sit" : "Unknown")),
@@ -2252,7 +2418,7 @@ static void sigusr1(int i)
 		if (intn->mld_version == 0)
 		fprintf(g_conf->stat_file, "  MLD version            : none\n");
 		else
-		fprintf(g_conf->stat_file, "  MLD version            : v%u\n", intn->mld_version);
+		fprintf(g_conf->stat_file, "  MLD version            : v%" PRIu64 "\n", intn->mld_version);
 
 		fprintf(g_conf->stat_file, "  Packets received       : %" PRIu64 "\n", intn->stat_packets_received);
 		fprintf(g_conf->stat_file, "  Packets sent           : %" PRIu64 "\n", intn->stat_packets_sent);
@@ -2326,10 +2492,15 @@ static void send_mld_querys(void)
 	for (i=0; i < g_conf->maxinterfaces; i++)
 	{
 		intn = &g_conf->ints[i];
-		if (intn->mtu == 0) continue;
+
+		if (intn->mtu == 0)
+		{
+			continue;
+		}
 
 		mld_send_query(intn, &any, NULL, false);
 	}
+
 	dolog(LOG_DEBUG, "Sending MLD Queries - done\n");
 }
 
@@ -2356,7 +2527,8 @@ static void timeout(void)
 	struct listnode		*gn, *gn2;
 	struct subscrnode	*subscrn;
 	struct listnode		*ssn, *ssn2;
-	time_t			time_tee;
+	uint64_t		time_tee;
+	int64_t			i;
 
 	dolog(LOG_DEBUG, "Timeout\n");
 
@@ -2364,20 +2536,26 @@ static void timeout(void)
 	update_interfaces(NULL);
 
 	/* Get the current time */
-	time_tee = time(NULL);
+	time_tee = gettimes();
 
 	/* Timeout all the groups that didn't refresh yet */
 	LIST_LOOP2(g_conf->groups, groupn, ln, ln2)
 	{
 		printf("Groups\n");
+
 		LIST_LOOP2(groupn->interfaces, grpintn, gn, gn2)
 		{
 			printf("Group Interfaces\n");
+
 			LIST_LOOP2(grpintn->subscriptions, subscrn, ssn, ssn2)
 			{
 				/* Calculate the difference */
-				int i = time_tee - subscrn->refreshtime;
-				if (i < 0) i = -i;
+				i = time_tee - subscrn->refreshtime;
+
+				if (i < 0)
+				{
+					i = -i;
+				}
 
 				/* Dead too long? */
 				if (i > (ECMH_SUBSCRIPTION_TIMEOUT * ECMH_ROBUSTNESS_FACTOR))
@@ -2389,6 +2567,7 @@ static void timeout(void)
 				}
 			}
 			LIST_LOOP2_END
+
 #ifndef ECMH_SUPPORT_MLD2
 			if (grpintn->subscriptions->count == 0)
 #else
@@ -2407,6 +2586,7 @@ static void timeout(void)
 		{
 			/* Delete from the list */
 			list_delete_node(g_conf->groups, ln);
+
 			/* Destroy the group */
 			group_destroy(groupn);
 		}
@@ -2422,7 +2602,7 @@ static void timeout(void)
 static bool handleinterfaces(uint8_t *buffer);
 static bool handleinterfaces(uint8_t *buffer)
 {
-	int			i=0, len;
+	int			i = 0, len;
 	struct intnode		*intn = NULL;
 
 #ifndef ECMH_BPF
@@ -2468,6 +2648,7 @@ static bool handleinterfaces(uint8_t *buffer)
 			update_interfaces(intn);
 		}
 	}
+
 	if (intn)
 	{
 		intn->stat_packets_received++;
@@ -2480,14 +2661,13 @@ static bool handleinterfaces(uint8_t *buffer)
 	{
 		dolog(LOG_ERR, "Couldn't find interface link %u\n", i);
 	}
+
 	return true;
 #else /* !ECMH_BPF */
-	uint8_t			*bp, *ep, *op, *rbuffer = buffer;
+	uint8_t			*bp, *ep, *rbuffer = buffer;
 	struct bpf_hdr		*bhp;
-	struct ifreq		ifr;
 	fd_set			fd_read;
 	struct timeval		timeout;
-	struct listnode		*ln;
 
 	/* What we want to know */
 	memcpy(&fd_read, &g_conf->selectset, sizeof(fd_read));
@@ -2498,19 +2678,33 @@ static bool handleinterfaces(uint8_t *buffer)
 	i = select(g_conf->hifd+1, &fd_read, NULL, NULL, &timeout);
 	if (i < 0)
 	{
-		if (errno == EINTR) return true;
+		if (errno == EINTR)
+		{
+			return true;
+		}
+
 		dolog(LOG_ERR, "Select failed\n");
 		return false;
 	}
-	if (i == 0) return true;
 
-	for (i=0;i<g_conf->maxinterfaces;i++)
+	if (i == 0)
+	{
+		return true;
+	}
+
+	for (i = 0; ((uint64_t)i) < g_conf->maxinterfaces; i++)
 	{
 		intn = &g_conf->ints[i];
-		if (intn->mtu == 0) continue;
+		if (intn->mtu == 0)
+		{
+			continue;
+		}
 
 		if (	intn->socket == -1 ||
-			!FD_ISSET(intn->socket, &fd_read)) continue;
+			!FD_ISSET(intn->socket, &fd_read))
+		{
+			continue;
+		}
 
 		len = read(intn->socket, rbuffer, intn->bufferlen);
 		if (len < 0)
@@ -2522,7 +2716,7 @@ static bool handleinterfaces(uint8_t *buffer)
 		bp = buffer = rbuffer;
 		bhp = (struct bpf_hdr *)bp;
 
-		for ( ep = bp + bhp->bh_caplen;
+		for (	ep = bp + bhp->bh_caplen;
 			bp < ep;
 			bp += BPF_WORDALIGN(bhp->bh_caplen + bhp->bh_hdrlen))
 		{
@@ -2530,13 +2724,14 @@ static bool handleinterfaces(uint8_t *buffer)
 		    	buffer = bp + bhp->bh_hdrlen;
 
 			intn->stat_packets_received++;
-			intn->stat_bytes_received+=bhp->bh_caplen;
+			intn->stat_bytes_received += bhp->bh_caplen;
 
 			/* Layer 2 packet */
 			l2_eth(intn, (struct ether_header *)buffer, bhp->bh_caplen);
 		}
 	} /* Interfaces */
 #endif /* !ECMH_BPF */
+
 	return true;
 }
 
@@ -2563,9 +2758,11 @@ int main(int argc, char *argv[])
 	int			i, drop_uid = 0, drop_gid = 0, option_index = 0;
 	unsigned int		j;
 	struct passwd		*passwd;
-        struct sched_param      schedparam;
 	bool			quit = false;
 	struct intnode		*intn;
+#ifdef _LINUX
+        struct sched_param      schedparam;
+#endif
 
 	init();
 
@@ -2596,6 +2793,7 @@ int main(int argc, char *argv[])
 				fprintf(stderr, "Only one upstream interface (was: %s) can be specified\n", g_conf->upstream);
 				return -1;
 			}
+
 			g_conf->upstream = strdup(optarg);
 			break;
 			
@@ -2614,12 +2812,14 @@ int main(int argc, char *argv[])
 				fprintf(stderr, "Couldn't find user %s, aborting\n", optarg);
 				return -1;
 			}
+
 			drop_uid = passwd->pw_uid;
 			drop_gid = passwd->pw_gid;
 			break;
 #ifdef ECMH_BPF
 		case 't':
 			g_conf->tunnelmode = true;
+
 			break;
 		case 'T':
 			g_conf->tunnelmode = false;
@@ -2633,6 +2833,7 @@ int main(int argc, char *argv[])
 		case 'V':
 			printf(ECMH_VERSION_STRING, ECMH_VERSION, ECMH_GITHASH);
 			return 0;
+
 #ifdef ECMH_SUPPORT_MLD2
 		case '1':
 			g_conf->mld1only = true;
@@ -2690,6 +2891,7 @@ int main(int argc, char *argv[])
 				"* = RFC incompliant as it ignores MLDv1 reports completely\n"
 				"Recommended is running without the 'only' options as that is\n"
 				"the mode allows fallback from MLDv2 to MLDv1 as per the RFC\n");
+
 			return -1;
 		}
 	}
@@ -2703,11 +2905,16 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "Couldn't fork\n");
 			return -1;
 		}
+
 		/* Exit the mother fork */
-		if (pid != 0) return 0;
+		if (pid != 0)
+		{
+			return 0;
+		}
 
 		/* Child fork */
 		setsid();
+
 		/* Cleanup stdin/out/err */
 		freopen("/dev/null","r",stdin);
 		freopen("/dev/null","w",stdout);
@@ -2751,6 +2958,7 @@ int main(int argc, char *argv[])
 		dolog(LOG_INFO, "MLDv2 Only Mode, only MLDv2 Queries will be sent\n");
 	}
 #endif
+
 	/* Save our PID */
 	savepid();
 
@@ -2784,6 +2992,7 @@ int main(int argc, char *argv[])
 		dolog(LOG_INFO, "Couldn't allocate memory for buffer: %s (%d)\n", strerror(errno), errno);
 		return -1;
 	}
+
 	memset(g_conf->buffer, 0, g_conf->bufferlen);
 
 	/* Fix our priority, we need to be near realtime */
@@ -2792,20 +3001,30 @@ int main(int argc, char *argv[])
 		dolog(LOG_WARNING, "Couldn't raise priority to -15, if streams are shaky, upgrade your cpu or fix this\n");
 	}
 
+#ifdef _LINUX
 	/* Change scheduler for higher accuracy */
 	memset(&schedparam, 0, sizeof(schedparam));
 	schedparam.sched_priority = 99;
+
 	if (sched_setscheduler(0, SCHED_FIFO, &schedparam) == -1)
 	{
 		dolog(LOG_WARNING, "Couldn't configure the scheduler, errno = %i\n",errno);
 	}
+#endif
 
 	/*
 	 * Drop our root priveleges.
 	 * We don't need them anymore anyways
 	 */
-	if (drop_uid != 0) setuid(drop_uid);
-	if (drop_gid != 0) setgid(drop_gid);
+	if (drop_uid != 0)
+	{
+		setuid(drop_uid);
+	}
+
+	if (drop_gid != 0)
+	{
+		setgid(drop_gid);
+	}
 
 	/* Update the complete interfaces list */
 	update_interfaces(NULL);
@@ -2850,10 +3069,15 @@ int main(int argc, char *argv[])
 #endif
 
 	/* Get rid of the interfaces too now */
-	for (j=0;j<g_conf->maxinterfaces;j++)
+	for (j = 0; j < g_conf->maxinterfaces; j++)
 	{
 		intn = &g_conf->ints[j];
-		if (intn->mtu == 0) continue;
+
+		if (intn->mtu == 0)
+		{
+			continue;
+		}
+
 		int_destroy(intn);
 	}
 	

@@ -109,7 +109,10 @@ static bool int_create_bpf(struct intnode *intn, bool tunnel)
 
 		/* Add it to the select set */
 		FD_SET(intn->socket, &g_conf->selectset);
-		if (intn->socket > g_conf->hifd) g_conf->hifd = intn->socket;
+		if (((uint64_t)intn->socket) > g_conf->hifd)
+		{
+			g_conf->hifd = intn->socket;
+		}
 	}
 	/* It is a tunnel and we are in tunnel mode*/
 	else
@@ -141,7 +144,7 @@ static bool int_create_bpf(struct intnode *intn, bool tunnel)
 		close(sock);
 
 		/* Find the master */
-		intn->master = int_find_ipv4(true, &((struct sockaddr_in *)&iflr.addr)->sin_addr, false);
+		intn->master = int_find_ipv4(true, &((struct sockaddr_in *)&iflr.addr)->sin_addr);
 		if (!intn->master)
 		{
 			char buf[1024];
@@ -215,7 +218,7 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 	/* Get the interface name (eth0/sit0/...) */
 	/* Will be used for reports etc */
 	memset(&ifreq, 0, sizeof(ifreq));
-#ifdef ECMH_BPF
+#ifdef SIOCGIFNAME
 	ifreq.ifr_ifindex = ifindex;
 	if (ioctl(sock, SIOCGIFNAME, &ifreq) != 0)
 #else
@@ -345,25 +348,30 @@ struct intnode *int_find(unsigned int ifindex)
 struct intnode *int_find_ipv4(bool local, struct in_addr *ipv4)
 {
 	struct intnode	*intn;
-	struct listnode	*ln;
 	int		num = 0;
 	unsigned int	i;
 
-	for (i=0;i<g_conf->maxinterfaces;i++)
+	for (i = 0; i < g_conf->maxinterfaces; i++)
 	{
 		intn = &g_conf->ints[i];
 		/* Skip uninitialized interfaces */
-		if (intn->mtu == 0) continue;
-
-		for (num=0;num<INTNODE_MAXIPV4;num++)
+		if (intn->mtu == 0)
 		{
-			if (memcmp(local ? &intn->ipv4_local[num] : &intn->ipv4_remote, ipv4, sizeof(ipv4)) == 0)
+			continue;
+		}
+
+		for (num = 0; num < INTNODE_MAXIPV4; num++)
+		{
+			if (memcmp(local ? &intn->ipv4_local[num] : &intn->ipv4_remote, ipv4, sizeof(*ipv4)) == 0)
 			{
 				return intn;
 			}
 
 			/* Only one remote IPv4 address */
-			if (!local) break;
+			if (!local)
+			{
+				break;
+			}
 		}
 	}
 	return NULL;
@@ -400,7 +408,7 @@ void int_set_mld_version(struct intnode *intn, unsigned int newversion)
 			if (intn->mld_version > 1) dolog(LOG_DEBUG, "MLDv1 Query detected on %s, downgrading from MLDv%u to MLDv1\n", intn->mld_version, intn->name);
 			else dolog(LOG_DEBUG, "MLDv1 detected on %s, setting it to MLDv1\n", intn->name);
 			intn->mld_version = 1;
-			intn->mld_last_v1 = time(NULL);
+			intn->mld_last_v1 = gettimes();
 		}
 	}
 #ifdef ECMH_SUPPORT_MLD2
@@ -411,7 +419,7 @@ void int_set_mld_version(struct intnode *intn, unsigned int newversion)
 		 * Reset the counter
 		 */
 		if (	intn->mld_last_v1 != 0 &&
-			(time(NULL) > (intn->mld_last_v1 + ECMH_SUBSCRIPTION_TIMEOUT)))
+			(gettimes() > (intn->mld_last_v1 + ECMH_SUBSCRIPTION_TIMEOUT)))
 		{
 			dolog(LOG_DEBUG, "MLDv1 has not been seen for %u seconds on %s, allowing upgrades\n", 
 				(intn->mld_last_v1 + ECMH_SUBSCRIPTION_TIMEOUT), intn->name);
@@ -497,13 +505,13 @@ struct localnode *local_find(struct in_addr *ipv4)
 {
 	struct localnode	*localn;
 	struct listnode		*ln;
-	int			num=0;
+	int			num = 0;
 
 	LIST_LOOP(g_conf->locals, localn, ln)
 	{
-		for (num=0;num<INTNODE_MAXIPV4;num++)
+		for (num = 0; num < INTNODE_MAXIPV4; num++)
 		{
-			if (memcmp(&localn->intn->ipv4_local[num], ipv4, sizeof(ipv4)) == 0)
+			if (memcmp(&localn->intn->ipv4_local[num], ipv4, sizeof(*ipv4)) == 0)
 			{
 				return localn;
 			}

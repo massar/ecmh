@@ -16,7 +16,7 @@ struct subscrnode *subscr_create(const struct in6_addr *ipv6, int mode)
 	memset(subscrn, 0, sizeof(*subscrn));
 	memcpy(&subscrn->ipv6, ipv6, sizeof(*ipv6));
 	subscrn->mode = mode;
-	subscrn->refreshtime = time(NULL);
+	subscrn->refreshtime = gettimes();
 
 D(
 	{
