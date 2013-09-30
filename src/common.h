@@ -10,3 +10,4 @@ void dolog(int level, const char *fmt, ...);
 int huprunning(void);
 void savepid(void);
 void cleanpid(int i);
+uint64_t gettimes(void);
