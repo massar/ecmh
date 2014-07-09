@@ -36,7 +36,7 @@ volatile int	g_needs_timeout = false;
  */
 static const char ipv4_6to4_relay[4] = { '\xc0', '\x58', '\x63', '\x01'};
 
-static void l2_ethtype(struct intnode *intn, const uint8_t *packet, const unsigned int len, const unsigned int ether_type);
+static void l2_ethtype(struct intnode *intn, const void *packet, const unsigned int len, const unsigned int ether_type);
 
 /**************************************
   Functions
@@ -755,7 +755,7 @@ static void icmp6_send(struct intnode *intn, const struct in6_addr *src, int typ
 	memcpy(&packet.icmp6.icmp6_data32, data, (sizeof(packet.data) > dlen ? dlen : sizeof(packet.data)));
 
 	/* Calculate and fill in the checksum */
-	packet.icmp6.icmp6_cksum	= ipv6_checksum(&packet.ip6, IPPROTO_ICMPV6, (uint8_t *)&packet.icmp6, sizeof(packet.icmp6) + dlen - sizeof(packet.icmp6.icmp6_data32));
+	packet.icmp6.icmp6_cksum	= ipv6_checksum(&packet.ip6, IPPROTO_ICMPV6, &packet.icmp6, sizeof(packet.icmp6) + dlen - sizeof(packet.icmp6.icmp6_data32));
 
 	dolog(LOG_DEBUG, "Sending ICMPv6 Type %s (%u) code %s (%u) on %s/%u\n", icmpv6_type(type), type, icmpv6_code(type, code), code, intn->name, intn->ifindex);
 	sendpacket6(intn, (const struct ip6_hdr *)&packet, sizeof(packet) - (sizeof(packet.data) - dlen) - sizeof(packet.icmp6.icmp6_data32));
@@ -874,7 +874,7 @@ static void mld_send_query(struct intnode *intn, const struct in6_addr *mca, con
 
 	/* Calculate and fill in the checksum */
 	packet.ip6.ip6_plen		= htons(packetlen - sizeof(packet.ip6));
-	packet.mldq.csum		= ipv6_checksum(&packet.ip6, IPPROTO_ICMPV6, (uint8_t *)&packet.mldq, packetlen - sizeof(packet.ip6) - sizeof(packet.hbh) - sizeof(packet.routeralert));
+	packet.mldq.csum		= ipv6_checksum(&packet.ip6, IPPROTO_ICMPV6, &packet.mldq, packetlen - sizeof(packet.ip6) - sizeof(packet.hbh) - sizeof(packet.routeralert));
 
 #ifdef ECMH_SUPPORT_MLD2
 	if (g_conf->mld1only)
@@ -950,7 +950,7 @@ static void mld1_send_report(struct intnode *intn, const struct in6_addr *mca)
 	memcpy(&packet.mld1.mca, mca, sizeof(*mca));
 
 	/* Calculate and fill in the checksum */
-	packet.mld1.csum		= ipv6_checksum(&packet.ip6, IPPROTO_ICMPV6, (uint8_t *)&packet.mld1, sizeof(packet.mld1));
+	packet.mld1.csum		= ipv6_checksum(&packet.ip6, IPPROTO_ICMPV6, &packet.mld1, sizeof(packet.mld1));
 
 	dolog(LOG_DEBUG, "Sending MLDv1 Report on %s/%u\n", intn->name, intn->ifindex);
 	sendpacket6(intn, (const struct ip6_hdr *)&packet, sizeof(packet));
@@ -997,15 +997,13 @@ static void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 	}
 
 	/* Allocate a buffer matching the MTU size of this interface */
-	packet = (struct mld_report_packet *)malloc(intn->mtu);
+	packet = (struct mld_report_packet *)calloc(1, intn->mtu);
 
 	if (!packet)
 	{
 		dolog(LOG_ERR, "Couldn't allocate memory for MLD2 Report packet, aborting\n");
 		exit(-1);
 	}
-
-	memset(packet, 0, intn->mtu);
 
 	/* Create the IPv6 packet */
 	packet->ip6.ip6_vfc		= 0x60;
@@ -1157,7 +1155,7 @@ static void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 					/* Calculate and fill in the checksum */
 					packet->ip6.ip6_plen	= htons(length);
 					packet->mld2r.csum	= htons(0);
-					packet->mld2r.csum	= ipv6_checksum(&packet->ip6, IPPROTO_ICMPV6, (uint8_t *)&packet->mld2r, length-sizeof(struct ip6_hbh)-sizeof(packet->routeralert));
+					packet->mld2r.csum	= ipv6_checksum(&packet->ip6, IPPROTO_ICMPV6, &packet->mld2r, length-sizeof(struct ip6_hbh)-sizeof(packet->routeralert));
 
 					dolog(LOG_DEBUG, "Sending2 MLDv2 Report on %s/%u, ngrec=%u, length=%u sources=%u (in last grec)\n", intn->name, intn->ifindex, ntohs(packet->mld2r.ngrec), length, ntohs(grec->grec_nsrcs));
 					sendpacket6(intn, (const struct ip6_hdr *)packet, length + sizeof(packet->ip6));
@@ -1185,12 +1183,12 @@ static void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 						grec->grec_nsrcs = htons(grec->grec_nsrcs);
 
 						/* Next grec */
-						grec = (struct mld2_grec *)(((char *)grec) + sizeof(*grec) + (sizeof(struct in6_addr) * grec->grec_nsrcs));
+						grec = (struct mld2_grec *)(((uint8_t *)grec) + sizeof(*grec) + (sizeof(struct in6_addr) * grec->grec_nsrcs));
 					}
 					else
 					{
 						/* First grec */
-						grec = (struct mld2_grec *)(((char *)packet) + sizeof(*packet));
+						grec = (struct mld2_grec *)(((uint8_t *)packet) + sizeof(*packet));
 					}
 
 					/* The Multicast address */
@@ -1247,7 +1245,7 @@ static void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 	/* Calculate and fill in the checksum */
 	packet->ip6.ip6_plen	= htons(length);
 	packet->mld2r.csum	= htons(0);
-	packet->mld2r.csum	= ipv6_checksum(&packet->ip6, IPPROTO_ICMPV6, (uint8_t *)&packet->mld2r, length-sizeof(struct ip6_hbh)-sizeof(packet->routeralert));
+	packet->mld2r.csum	= ipv6_checksum(&packet->ip6, IPPROTO_ICMPV6, &packet->mld2r, length-sizeof(struct ip6_hbh)-sizeof(packet->routeralert));
 
 	dolog(LOG_DEBUG, "Sending2 MLDv2 Report on %s/%u, ngrec=%u, length=%u sources=%u (in last grec)\n", intn->name, intn->ifindex, ntohs(packet->mld2r.ngrec), length, ntohs(grec->grec_nsrcs));
 	sendpacket6(intn, (const struct ip6_hdr *)packet, length + sizeof(packet->ip6));
@@ -1313,8 +1311,8 @@ static void mld_send_report_all(struct intnode *interface, const struct in6_addr
 #ifdef ECMH_SUPPORT_IPV4
 
 /* IPv4 ICMP */
-static void l4_ipv4_icmp(struct intnode *intn, struct ip *iph, const uint8_t *packet, const uint16_t len);
-static void l4_ipv4_icmp(struct intnode *intn, struct ip *iph, const uint8_t *packet, const uint16_t len)
+static void l4_ipv4_icmp(struct intnode *intn, struct ip *iph, const void *packet, const uint16_t len);
+static void l4_ipv4_icmp(struct intnode *intn, struct ip *iph, const void *packet, const uint16_t len)
 {
 	D(dolog(LOG_DEBUG, "%5s L4:IPv4 ICMP\n", intn->name);)
 	return;
@@ -1330,8 +1328,8 @@ static void l4_ipv4_icmp(struct intnode *intn, struct ip *iph, const uint8_t *pa
  * This way we don't have to a BPF/PCAP on all the tunnel interfaces
  * 
  */
-static void l4_ipv4_proto41(struct intnode *intn, struct ip *iph, const uint8_t *packet, const uint16_t len);
-static void l4_ipv4_proto41(struct intnode *intn, struct ip *iph, const uint8_t *packet, const uint16_t len)
+static void l4_ipv4_proto41(struct intnode *intn, struct ip *iph, const void *packet, const uint16_t len);
+static void l4_ipv4_proto41(struct intnode *intn, struct ip *iph, const void *packet, const uint16_t len)
 {
 	struct localnode 	*localn;
 	struct intnode		*tun;
@@ -1440,7 +1438,7 @@ static void l3_ipv4(struct intnode UNUSED *intn, struct ip *iph, const uint16_t 
 #ifdef ECMH_SUPPORT_IPV4
 	if (iph->ip_p == 1)
 	{
-		l4_ipv4_icmp(intn, iph, ((uint8_t *)iph) + (4 * iph->ip_hl), len - (4 * iph->ip_hl));
+		l4_ipv4_icmp(intn, iph, (uint8_t *)iph) + (4 * iph->ip_hl), len - (4 * iph->ip_hl));
 	}
 #ifdef ECMH_BPF
 	else
@@ -1995,7 +1993,7 @@ static void l4_ipv6_icmpv6(struct intnode *intn, struct ip6_hdr *iph, const uint
 	icmpv6->icmp6_cksum = 0;
 
 	/* Verify checksum */
-	icmpv6->icmp6_cksum = ipv6_checksum(iph, IPPROTO_ICMPV6, (uint8_t *)icmpv6, plen);
+	icmpv6->icmp6_cksum = ipv6_checksum(iph, IPPROTO_ICMPV6, icmpv6, plen);
 	if (icmpv6->icmp6_cksum != csum)
 	{
 		dolog(LOG_WARNING, "CORRUPT->DROP (%s): Received a ICMPv6 %s (%u) with wrong checksum (%x vs %x)\n",
@@ -2175,7 +2173,7 @@ static void l3_ipv6(struct intnode *intn, struct ip6_hdr *iph, const uint16_t le
 	return;
 }
 
-static void l2_ethtype(struct intnode *intn, const uint8_t *packet, const unsigned int len, const unsigned int ether_type)
+static void l2_ethtype(struct intnode *intn, const void *packet, const unsigned int len, const unsigned int ether_type)
 {
 	switch (ether_type)
 	{
@@ -2205,15 +2203,12 @@ static void l2_eth(struct intnode *intn, struct ether_header *eth, const unsigne
 static void init(void);
 static void init(void)
 {
-	g_conf = malloc(sizeof(struct conf));
+	g_conf = calloc(1, sizeof(*g_conf));
 	if (!g_conf)
 	{
 		dolog(LOG_ERR, "Couldn't init() - no memory for configuration\n");
 		exit(-1);
 	}
-
-	/* Clear it, never bad, always good  */
-	memset(g_conf, 0, sizeof(*g_conf));
 
 	/*
 	 * 32k of buffer should be enough
@@ -2599,8 +2594,8 @@ static void timeout(void)
 	dolog(LOG_DEBUG, "Timeout - done\n");
 }
 
-static bool handleinterfaces(uint8_t *buffer);
-static bool handleinterfaces(uint8_t *buffer)
+static bool handleinterfaces(void *buffer);
+static bool handleinterfaces(void *buffer)
 {
 	int			i = 0, len;
 	struct intnode		*intn = NULL;
@@ -2664,7 +2659,7 @@ static bool handleinterfaces(uint8_t *buffer)
 
 	return true;
 #else /* !ECMH_BPF */
-	uint8_t			*bp, *ep, *rbuffer = buffer;
+	void			*bp, *ep, *rbuffer = buffer;
 	struct bpf_hdr		*bhp;
 	fd_set			fd_read;
 	struct timeval		timeout;
@@ -2716,18 +2711,18 @@ static bool handleinterfaces(uint8_t *buffer)
 		bp = buffer = rbuffer;
 		bhp = (struct bpf_hdr *)bp;
 
-		for (	ep = bp + bhp->bh_caplen;
+		for (	ep = ((uint8_t *)bp) + bhp->bh_caplen;
 			bp < ep;
-			bp += BPF_WORDALIGN(bhp->bh_caplen + bhp->bh_hdrlen))
+			bp = ((uint8_t *)bp) + BPF_WORDALIGN(bhp->bh_caplen + bhp->bh_hdrlen))
 		{
 		    	bhp = (struct bpf_hdr *)bp;
-		    	buffer = bp + bhp->bh_hdrlen;
+		    	buffer = ((uint8_t *)bp) + bhp->bh_hdrlen;
 
 			intn->stat_packets_received++;
 			intn->stat_bytes_received += bhp->bh_caplen;
 
 			/* Layer 2 packet */
-			l2_eth(intn, (struct ether_header *)buffer, bhp->bh_caplen);
+			l2_eth(intn, buffer, bhp->bh_caplen);
 		}
 	} /* Interfaces */
 #endif /* !ECMH_BPF */
@@ -2986,14 +2981,12 @@ int main(int argc, char *argv[])
 
 #endif /* ECMH_BPF */
 
-	g_conf->buffer = malloc(g_conf->bufferlen);
+	g_conf->buffer = calloc(1, g_conf->bufferlen);
 	if (!g_conf->buffer)
 	{
 		dolog(LOG_INFO, "Couldn't allocate memory for buffer: %s (%d)\n", strerror(errno), errno);
 		return -1;
 	}
-
-	memset(g_conf->buffer, 0, g_conf->bufferlen);
 
 	/* Fix our priority, we need to be near realtime */
 	if (setpriority(PRIO_PROCESS, getpid(), -15) == -1)

@@ -134,7 +134,7 @@ struct conf
 #endif
 	bool			promisc;			/* Make interfaces promisc? (To be sure to receive all MLD's) */
 	
-	uint8_t			*buffer;			/* Our buffer */
+	void			*buffer;			/* Our buffer */
 	uint64_t		bufferlen;			/* Length of the buffer */
 
 #ifndef ECMH_BPF

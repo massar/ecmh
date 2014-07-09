@@ -7,7 +7,7 @@
 
 struct grpintnode *grpint_create(const struct intnode *interface)
 {
-	struct grpintnode *grpintn = malloc(sizeof(*grpintn));
+	struct grpintnode *grpintn = calloc(1, sizeof(*grpintn));
 
 	if (!grpintn) return NULL;
 

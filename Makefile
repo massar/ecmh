@@ -12,7 +12,7 @@
 ECMH=ecmh
 
 # The version of this release
-ECMH_VERSION=2013.09.28
+ECMH_VERSION=2014.07.09
 
 # ECMH Compile Time Options
 # Append one of the following option on wish to
@@ -23,8 +23,21 @@ ECMH_VERSION=2013.09.28
 # Enable IPv4 Support  : -DECMH_SUPPORT_IPV4
 # Enable MLDv2 Support : -DECMH_SUPPORT_MLD2
 # GetIfAddr Support    : -DECMH_GETIFADDR
-# BPF Support (BSD)    : _DECMH_BPF
+# BPF Support (BSD)    : -DECMH_BPF
 ECMH_OPTIONS=-DECMH_SUPPORT_MLD2 -DECMH_GETIFADDR
+
+ifeq ($(OS_NAME),)
+override OS_NAME=$(shell uname -s)
+$(info - Detected OS Name: ${OS_NAME})
+endif
+
+ifeq ($(OS_NAME),Darwin)
+ECMH_OPTIONS+=-DECMH_BPF
+endif
+
+ifeq ($(OS_NAME),BSD)
+ECMH_OPTIONS+=-DECMH_BPF
+endif
 
 ########################################################
 

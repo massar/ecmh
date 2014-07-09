@@ -97,14 +97,13 @@ static bool int_create_bpf(struct intnode *intn, bool tunnel)
 		{
 			free(g_conf->buffer);
 			g_conf->bufferlen = intn->bufferlen;
-			g_conf->buffer = malloc(g_conf->bufferlen);
+			g_conf->buffer = calloc(1, g_conf->bufferlen);
 			if (!g_conf->buffer)
 			{
 				dolog(LOG_ERR, "Couldn't increase bufferlength to %u\n", g_conf->bufferlen);
 				dolog(LOG_ERR, "Expecting a memory shortage, exiting\n");
 				exit(-1);
 			}
-			memset(g_conf->buffer, 0, g_conf->bufferlen);
 		}
 
 		/* Add it to the select set */
@@ -483,13 +482,12 @@ void local_update(struct intnode *intn)
 		if (localn) continue;
 
 		/* Allocate a piece of memory */
-		localn = (struct localnode *)malloc(sizeof(*localn));
+		localn = (struct localnode *)calloc(1, sizeof(*localn));
 		if (!localn)
 		{
 			dolog(LOG_ERR, "Couldn't allocate memory for localnode\n");
 			continue;
 		}
-		memset(localn, 0, sizeof(*localn));
 
 		/* Fill it in */
 		localn->intn = intn;

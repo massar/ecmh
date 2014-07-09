@@ -13,9 +13,8 @@ struct list *list_new()
 {
 	struct list *new;
 
-	new = malloc(sizeof(struct list));
+	new = calloc(1, sizeof(*new));
 	if (!new) return NULL;
-	memset(new, 0, sizeof(struct list));
 	return new;
 }
 
@@ -31,9 +30,8 @@ static struct listnode *listnode_new(void)
 {
 	struct listnode *node;
 
-	node = malloc(sizeof(struct listnode));
+	node = calloc(1, sizeof(*node));
 	if (!node) return NULL;
-	memset(node, 0, sizeof(struct listnode));
 	return node;
 }
 

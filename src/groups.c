@@ -9,12 +9,11 @@
 static struct groupnode *group_create(const struct in6_addr *mca);
 static struct groupnode *group_create(const struct in6_addr *mca)
 {
-	struct groupnode *groupn = malloc(sizeof(*groupn));
+	struct groupnode *groupn = calloc(1, sizeof(*groupn));
 
 	if (!groupn) return NULL;
 
 	/* Fill her in */
-	memset(groupn, 0, sizeof(*groupn));
 	memcpy(&groupn->mca, mca, sizeof(*mca));
 
 	/* Setup the list */

@@ -8,12 +8,11 @@
 /* Subscription Node */
 struct subscrnode *subscr_create(const struct in6_addr *ipv6, int mode)
 {
-	struct subscrnode *subscrn = malloc(sizeof(*subscrn));
+	struct subscrnode *subscrn = calloc(1, sizeof(*subscrn));
 
 	if (!subscrn) return NULL;
 
 	/* Fill her in */
-	memset(subscrn, 0, sizeof(*subscrn));
 	memcpy(&subscrn->ipv6, ipv6, sizeof(*ipv6));
 	subscrn->mode = mode;
 	subscrn->refreshtime = gettimes();
