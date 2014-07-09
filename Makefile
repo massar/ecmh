@@ -39,6 +39,10 @@ ifeq ($(OS_NAME),BSD)
 ECMH_OPTIONS+=-DECMH_BPF
 endif
 
+ifeq ($(OS_NAME),Linux)
+LDLIBS += -lrt
+endif
+
 ########################################################
 
 ECMH_GITHASH:=$(shell git log --pretty=format:'%H' -n 1)
