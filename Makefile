@@ -14,17 +14,28 @@ ECMH=ecmh
 # The version of this release
 ECMH_VERSION=2014.07.25
 
+#####################################################
 # ECMH Compile Time Options
 # Append one of the following option on wish to
-# include certain features, -O3 is the default
-#
-# Optimize             : -O3
-# Enable Debugging     : -DDEBUG
-# Enable IPv4 Support  : -DECMH_SUPPORT_IPV4
-# Enable MLDv2 Support : -DECMH_SUPPORT_MLD2
-# GetIfAddr Support    : -DECMH_GETIFADDR
-# BPF Support (BSD)    : -DECMH_BPF
-ECMH_OPTIONS=-DECMH_SUPPORT_MLD2 -DECMH_GETIFADDR
+# include certain features
+ECMH_OPTIONS=
+
+# Enable IPv4 Support
+#ECMH_OPTIONS += -DECMH_SUPPORT_IPV4
+
+# Enable MLDv2 Support (default)
+ECMH_OPTIONS += -DECMH_SUPPORT_MLD2
+
+# GetIfAddr Support
+ECMH_OPTIONS += -DECMH_GETIFADDR
+
+# BPF Support (BSD) (enabled below if needed)
+#ECMH_OPTIONS += -DECMH_BPF
+
+# Enable Debugging (more verbosity than one wants)
+#ECMH_OPTIONS += -DDEBUG
+
+#####################################################
 
 ifeq ($(OS_NAME),)
 override OS_NAME=$(shell uname -s)
