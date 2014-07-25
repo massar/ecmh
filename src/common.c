@@ -13,7 +13,10 @@ void dolog(int level, const char *fmt, ...)
 	va_list ap;
 	if (g_conf && !g_conf->verbose && level == LOG_DEBUG) return;
 	va_start(ap, fmt);
-	if (g_conf && g_conf->daemonize) vsyslog(LOG_LOCAL7|level, fmt, ap);
+	if (g_conf && g_conf->daemonize)
+	{
+		vsyslog(LOG_LOCAL7|level, fmt, ap);
+	}
 	else
 	{
 		if (g_conf && g_conf->verbose)

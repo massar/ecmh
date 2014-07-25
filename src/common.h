@@ -6,7 +6,7 @@
  $Date: 2005/02/09 17:58:06 $
 *****************************************************/
 
-void dolog(int level, const char *fmt, ...);
+void dolog(int level, const char *fmt, ...) ATTR_FORMAT(printf, 2, 3);
 int huprunning(void);
 void savepid(void);
 void cleanpid(int i);

@@ -87,7 +87,7 @@ bool grpint_refresh(struct grpintnode *grpintn, const struct in6_addr *ipv6, uns
 	/* Mode still the same? */
 	if (mode != subscrn->mode)
 	{
-		dolog(LOG_DEBUG, "grpint_refresh() - Mode changed from %u to %u\n", subscrn->mode, mode);
+		dolog(LOG_DEBUG, "grpint_refresh() - Mode changed from %" PRIu64 " to %u\n", subscrn->mode, mode);
 		subscrn->mode = mode;
 	}
 

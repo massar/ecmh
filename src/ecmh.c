@@ -137,21 +137,28 @@ static struct lookup
 	{ ICMP6_DST_UNREACH_BEYONDSCOPE,	"Beyond scope of source address"	},
 	{ ICMP6_DST_UNREACH_ADDR,		"Address Unreachable"			},
 	{ ICMP6_DST_UNREACH_NOPORT,		"Port Unreachable"			},
+	{ 0,					NULL },
 }, icmpv6_codes_ttl[] = {
 	{ ICMP6_TIME_EXCEED_TRANSIT,		"Time Exceeded during Transit",		},
 	{ ICMP6_TIME_EXCEED_REASSEMBLY,		"Time Exceeded during Reassembly"	},
+	{ 0,					NULL },
 }, icmpv6_codes_param[] = {
 	{ ICMP6_PARAMPROB_HEADER,		"Erroneous Header Field"		},
 	{ ICMP6_PARAMPROB_NEXTHEADER,		"Unrecognized Next Header"		},
 	{ ICMP6_PARAMPROB_OPTION,		"Unrecognized Option"			},
+	{ 0,					NULL },
 }, icmpv6_codes_ni[] = {
 	{ ICMP6_NI_SUCCESS,			"Node Information Successful Reply"	},
 	{ ICMP6_NI_REFUSED,			"Node Information Request Is Refused"	},
 	{ ICMP6_NI_UNKNOWN,			"Unknown Qtype"				},
+	{ 0,					NULL },
 }, icmpv6_codes_renumber[] = {
 	{ ICMP6_ROUTER_RENUMBERING_COMMAND,	"Router Renumbering Command"		},
 	{ ICMP6_ROUTER_RENUMBERING_RESULT,	"Router Renumbering Result"		},
 	{ ICMP6_ROUTER_RENUMBERING_SEQNUM_RESET,"Router Renumbering Sequence Number Reset"},
+	{ 0,					NULL },
+}, icmpv6_codes_none[] = {
+	{ 0,					NULL },
 #ifdef DEBUG
 }, mld2_grec_types[] = {
 	{ MLD2_MODE_IS_INCLUDE,			"MLDv2 Mode Is Include" 		},
@@ -160,6 +167,7 @@ static struct lookup
 	{ MLD2_CHANGE_TO_EXCLUDE,		"MLDv2 Change to Exclude"		},
 	{ MLD2_ALLOW_NEW_SOURCES,		"MLDv2 Allow New Source"		},
 	{ MLD2_BLOCK_OLD_SOURCES,		"MLDv2 Block Old Sources"		},
+	{ 0,					NULL },
 #endif
 };
 
@@ -196,6 +204,7 @@ static const char *icmpv6_code(unsigned int type, unsigned int code)
 		case ICMP6_NI_QUERY:
 		case ICMP6_NI_REPLY:		l = icmpv6_codes_ni;		break;
 		case ICMP6_ROUTER_RENUMBERING:	l = icmpv6_codes_renumber;	break;
+		default:			l = icmpv6_codes_none;		break;
 	}
 
 	return lookup(l, code);
@@ -531,7 +540,7 @@ static void update_interfaces(struct intnode *intn)
 			{
 				if (gotlinkl || gotglobal || gotipv4)
 				{
-					dolog(LOG_DEBUG, "Added %s, link %" PRIu64 ", hw %s/%u with an MTU of %d\n",
+					dolog(LOG_DEBUG, "Added %s, link %" PRIu64 ", hw %s/%u with an MTU of %" PRIu64 "\n",
 						intn->name, intn->ifindex,
 #ifndef ECMH_BPF
 						(intn->hwaddr.sa_family == ARPHRD_ETHER ? "Ethernet" : 
@@ -546,7 +555,7 @@ static void update_interfaces(struct intnode *intn)
 				}
 				else
 				{
-					dolog(LOG_DEBUG, "[%-5s] Didn't get a linklocal or global address, interface destroying %u\n", intn->name, intn->ifindex);
+					dolog(LOG_DEBUG, "[%-5s] Didn't get a linklocal or global address, ignoring this address on interface %" PRIu64 "\n", intn->name, intn->ifindex);
 					int_destroy(intn);
 				}
 			}
@@ -556,7 +565,7 @@ static void update_interfaces(struct intnode *intn)
 		freeifaddrs(ifap);
 #endif
 	}
-	dolog(LOG_DEBUG, "Updating Interfaces - done, highest ifindex: %u\n", g_conf->maxinterfaces);
+	dolog(LOG_DEBUG, "Updating Interfaces - done, highest ifindex: %" PRIu64 "\n", g_conf->maxinterfaces);
 #ifndef ECMH_GETIFADDR
 	fclose(file);
 #else
@@ -688,13 +697,13 @@ static void sendpacket6(struct intnode *intn, const struct ip6_hdr *iph, const u
 		 */
 		if (errno == ENXIO)
 		{
-			dolog(LOG_DEBUG, "[%-5s] couldn't send %u bytes, received ENXIO, destroying interface %u\n", intn->name, len, intn->ifindex);
+			dolog(LOG_DEBUG, "[%-5s] couldn't send %u bytes, received ENXIO, destroying interface %" PRIu64 "\n", intn->name, len, intn->ifindex);
 			/* Destroy the interface itself */
 			int_destroy(intn);
 		}
 		else
 		{
-			dolog(LOG_DEBUG, "[%-5s] sending %u bytes failed, mtu = %u: %s (%d)\n", intn->name, len, intn->mtu, strerror(errno), errno);
+			dolog(LOG_DEBUG, "[%-5s] sending %u bytes failed, mtu = %" PRIu64 ": %s (%d)\n", intn->name, len, intn->mtu, strerror(errno), errno);
 		}
 
 		return;
@@ -757,7 +766,7 @@ static void icmp6_send(struct intnode *intn, const struct in6_addr *src, int typ
 	/* Calculate and fill in the checksum */
 	packet.icmp6.icmp6_cksum	= ipv6_checksum(&packet.ip6, IPPROTO_ICMPV6, &packet.icmp6, sizeof(packet.icmp6) + dlen - sizeof(packet.icmp6.icmp6_data32));
 
-	dolog(LOG_DEBUG, "Sending ICMPv6 Type %s (%u) code %s (%u) on %s/%u\n", icmpv6_type(type), type, icmpv6_code(type, code), code, intn->name, intn->ifindex);
+	dolog(LOG_DEBUG, "Sending ICMPv6 Type %s (%u) code %s (%u) on %s/%" PRIu64 "\n", icmpv6_type(type), type, icmpv6_code(type, code), code, intn->name, intn->ifindex);
 	sendpacket6(intn, (const struct ip6_hdr *)&packet, sizeof(packet) - (sizeof(packet.data) - dlen) - sizeof(packet.icmp6.icmp6_data32));
 
 	/* Increase ICMP sent statistics */
@@ -880,12 +889,12 @@ static void mld_send_query(struct intnode *intn, const struct in6_addr *mca, con
 	if (g_conf->mld1only)
 	{
 #endif
-		dolog(LOG_DEBUG, "Sending MLDv1 Query on %s/%u\n", intn->name, intn->ifindex);
+		dolog(LOG_DEBUG, "Sending MLDv1 Query on %s/%" PRIu64 "\n", intn->name, intn->ifindex);
 #ifdef ECMH_SUPPORT_MLD2
 	}
 	else
 	{
-		dolog(LOG_DEBUG, "Sending MLDv2 Query on %s/%u with %u sources\n", intn->name, intn->ifindex, ntohs(packet.mldq.nsrcs));
+		dolog(LOG_DEBUG, "Sending MLDv2 Query on %s/%" PRIu64 " with %u sources\n", intn->name, intn->ifindex, ntohs(packet.mldq.nsrcs));
 	}
 #endif
 	sendpacket6(intn, (const struct ip6_hdr *)&packet, packetlen);
@@ -952,7 +961,7 @@ static void mld1_send_report(struct intnode *intn, const struct in6_addr *mca)
 	/* Calculate and fill in the checksum */
 	packet.mld1.csum		= ipv6_checksum(&packet.ip6, IPPROTO_ICMPV6, &packet.mld1, sizeof(packet.mld1));
 
-	dolog(LOG_DEBUG, "Sending MLDv1 Report on %s/%u\n", intn->name, intn->ifindex);
+	dolog(LOG_DEBUG, "Sending MLDv1 Report on %s/%" PRIu64 "\n", intn->name, intn->ifindex);
 	sendpacket6(intn, (const struct ip6_hdr *)&packet, sizeof(packet));
 
 	/* Increase ICMP sent statistics */
@@ -992,7 +1001,7 @@ static void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 		 * MTU is too small to support this type of packet
 		 * Should not happen though
 		 */
-		dolog(LOG_WARNING, "MTU too small for packet while sending MLDv2 report on interface %s/%u mtu=%u!?\n", &intn->name, intn->ifindex, intn->mtu);
+		dolog(LOG_WARNING, "MTU too small for packet while sending MLDv2 report on interface %s/%" PRIu64 " mtu=%" PRIu64 "!?\n", intn->name, intn->ifindex, intn->mtu);
 		return;
 	}
 
@@ -1143,7 +1152,7 @@ static void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 					if (!grec)
 					{
 						/* Should not happen! Would mean the MTU is smaller than a standard mld report */
-						dolog(LOG_WARNING, "No grec and MTU too small for packet while sending MLDv2 report on interface %s/%u mtu=%u!?\n", &intn->name, intn->ifindex, intn->mtu);
+						dolog(LOG_WARNING, "No grec and MTU too small for packet while sending MLDv2 report on interface %s/%" PRIu64 " mtu=%" PRIu64 "!?\n", intn->name, intn->ifindex, intn->mtu);
 						free(packet);
 						return;
 					}
@@ -1157,7 +1166,7 @@ static void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 					packet->mld2r.csum	= htons(0);
 					packet->mld2r.csum	= ipv6_checksum(&packet->ip6, IPPROTO_ICMPV6, &packet->mld2r, length-sizeof(struct ip6_hbh)-sizeof(packet->routeralert));
 
-					dolog(LOG_DEBUG, "Sending2 MLDv2 Report on %s/%u, ngrec=%u, length=%u sources=%u (in last grec)\n", intn->name, intn->ifindex, ntohs(packet->mld2r.ngrec), length, ntohs(grec->grec_nsrcs));
+					dolog(LOG_DEBUG, "Sending2 MLDv2 Report on %s/%" PRIu64 ", ngrec=%u, length=%u sources=%u (in last grec)\n", intn->name, intn->ifindex, ntohs(packet->mld2r.ngrec), length, ntohs(grec->grec_nsrcs));
 					sendpacket6(intn, (const struct ip6_hdr *)packet, length + sizeof(packet->ip6));
 
 					/* Increase ICMP sent statistics */
@@ -1247,7 +1256,7 @@ static void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 	packet->mld2r.csum	= htons(0);
 	packet->mld2r.csum	= ipv6_checksum(&packet->ip6, IPPROTO_ICMPV6, &packet->mld2r, length-sizeof(struct ip6_hbh)-sizeof(packet->routeralert));
 
-	dolog(LOG_DEBUG, "Sending2 MLDv2 Report on %s/%u, ngrec=%u, length=%u sources=%u (in last grec)\n", intn->name, intn->ifindex, ntohs(packet->mld2r.ngrec), length, ntohs(grec->grec_nsrcs));
+	dolog(LOG_DEBUG, "Sending2 MLDv2 Report on %s/%" PRIu64 ", ngrec=%u, length=%u sources=%u (in last grec)\n", intn->name, intn->ifindex, ntohs(packet->mld2r.ngrec), length, ntohs(grec->grec_nsrcs));
 	sendpacket6(intn, (const struct ip6_hdr *)packet, length + sizeof(packet->ip6));
 
 	/* Increase ICMP sent statistics */
@@ -1452,14 +1461,15 @@ static void l3_ipv4(struct intnode UNUSED *intn, struct ip *iph, const uint16_t 
 #endif /* ECMH_BPF */
 }
 
-static void mld_log(unsigned int level, const char *fmt, const struct in6_addr *i_mca, const struct intnode *intn);
-static void mld_log(unsigned int level, const char *fmt, const struct in6_addr *i_mca, const struct intnode *intn)
+static void mld_log(unsigned int level, const char *msg, const struct in6_addr *i_mca, const struct intnode *intn);
+static void mld_log(unsigned int level, const char *msg, const struct in6_addr *i_mca, const struct intnode *intn)
 {
 	char mca[INET6_ADDRSTRLEN];
 
 	memzero(mca, sizeof(mca));
 	inet_ntop(AF_INET6, i_mca, mca, sizeof(mca));
-	dolog(level, fmt, mca, intn->name, intn->ifindex);
+
+	dolog(level, "%s for %s on %s/%" PRIu64 "\n", msg, mca, intn->name, intn->ifindex);
 }
 
 static void l4_ipv6_icmpv6_mld1_report(struct intnode *intn, struct mld1 *mld1);
@@ -1472,7 +1482,7 @@ static void l4_ipv6_icmpv6_mld1_report(struct intnode *intn, struct mld1 *mld1)
 #ifdef ECMH_SUPPORT_MLDV2
 	if (g_conf->mld2only)
 	{
-		mld_log(LOG_DEBUG, "Ignoring ICMPv6 MLDv1 Report for %s on %s/%u due to MLDv2Only mode\n", &mld1->mca, intn);
+		mld_log(LOG_DEBUG, "Ignoring ICMPv6 MLDv1 Report due to MLDv2Only mode", &mld1->mca, intn);
 		return;
 	}
 #endif
@@ -1483,7 +1493,7 @@ static void l4_ipv6_icmpv6_mld1_report(struct intnode *intn, struct mld1 *mld1)
 	 */
 	int_set_mld_version(intn, 1);
 
-	mld_log(LOG_DEBUG, "Received a ICMPv6 MLDv1 Report for %s on %s/%u\n", &mld1->mca, intn);
+	mld_log(LOG_DEBUG, "Received a ICMPv6 MLDv1 Report", &mld1->mca, intn);
 
 	/*
 	 * Ignore groups:
@@ -1503,7 +1513,7 @@ static void l4_ipv6_icmpv6_mld1_report(struct intnode *intn, struct mld1 *mld1)
 	grpintn = groupint_get(&mld1->mca, intn, &isnew);
 	if (!grpintn)
 	{
-		mld_log(LOG_WARNING, "Couldn't find or create new group %s for %s/%u\n", &mld1->mca, intn);
+		mld_log(LOG_WARNING, "Couldn't find or create new group", &mld1->mca, intn);
 		return;
 	}
 
@@ -1512,7 +1522,7 @@ static void l4_ipv6_icmpv6_mld1_report(struct intnode *intn, struct mld1 *mld1)
 	
 	if (!grpint_refresh(grpintn, &any, MLD2_MODE_IS_INCLUDE))
 	{
-		mld_log(LOG_WARNING, "Couldn't create subscription to %s for %s/%u\n", &mld1->mca, intn);
+		mld_log(LOG_WARNING, "Couldn't create subscription", &mld1->mca, intn);
 		return;
 	}
 
@@ -1534,7 +1544,7 @@ static void l4_ipv6_icmpv6_mld1_reduction(struct intnode *intn, struct mld1 *mld
 #ifdef ECMH_SUPPORT_MLDV2
 	if (g_conf->mld2only)
 	{
-		mld_log(LOG_DEBUG, "Ignoring ICMPv6 MLDv1 Reduction for %s on %s/%u due to MLDv2Only mode\n", &mld1->mca, intn);
+		mld_log(LOG_DEBUG, "Ignoring ICMPv6 MLDv1 Reduction due to MLDv2Only mode", &mld1->mca, intn);
 		return;
 	}
 #endif
@@ -1545,7 +1555,7 @@ static void l4_ipv6_icmpv6_mld1_reduction(struct intnode *intn, struct mld1 *mld
 	 */
 	int_set_mld_version(intn, 1);
 
-	mld_log(LOG_DEBUG, "Received a ICMPv6 MLDv1 Reduction for %s on %s/%u\n", &mld1->mca, intn);
+	mld_log(LOG_DEBUG, "Received a ICMPv6 MLDv1 Reduction", &mld1->mca, intn);
 
 	/*
 	 * Ignore groups:
@@ -1564,7 +1574,7 @@ static void l4_ipv6_icmpv6_mld1_reduction(struct intnode *intn, struct mld1 *mld
 	groupn = group_find(&mld1->mca);
 	if (!groupn)
 	{
-		mld_log(LOG_WARNING, "Couldn't find group %s for reduction of %s/%u\n", &mld1->mca, intn);
+		mld_log(LOG_WARNING, "Couldn't find group to reduce", &mld1->mca, intn);
 		return;
 	}
 
@@ -1572,7 +1582,7 @@ static void l4_ipv6_icmpv6_mld1_reduction(struct intnode *intn, struct mld1 *mld
 	grpintn = grpint_find(groupn->interfaces, intn);
 	if (!grpintn)
 	{
-		mld_log(LOG_WARNING, "Couldn't find the grpint %s for reduction of %s/%u\n", &mld1->mca, intn);
+		mld_log(LOG_WARNING, "Couldn't find the grpint to reduce", &mld1->mca, intn);
 		return;
 	}
 
@@ -1581,14 +1591,14 @@ static void l4_ipv6_icmpv6_mld1_reduction(struct intnode *intn, struct mld1 *mld
 
 	if (!subscr_unsub(grpintn->subscriptions, &any))
 	{
-		mld_log(LOG_WARNING, "Couldn't unsubscribe from %s on interface %s/%u\n", &mld1->mca, intn);
+		mld_log(LOG_WARNING, "Couldn't unsubscribe", &mld1->mca, intn);
 		return;
 	}
 
 	if (grpintn->subscriptions->count <= 0)
 	{
 		/* Requery if somebody still want it, as it will timeout otherwise. */
-		mld_log(LOG_DEBUG, "Querying for other listeners to %s on interface %s/%u\n", &mld1->mca, intn);
+		mld_log(LOG_DEBUG, "Querying for other listeners", &mld1->mca, intn);
 		mld_send_query(intn, &mld1->mca, NULL, false);
 
 #ifdef ECMH_SUPPORT_MLD2
@@ -1684,7 +1694,7 @@ static void l4_ipv6_icmpv6_mld2_report(struct intnode *intn, struct mld2_report 
 			grpintn = groupint_get(&grec->grec_mca, intn, &isnew);
 			if (!grpintn)
 			{
-				mld_log(LOG_WARNING, "L4:IPv6:ICMPv6:MLD2_Report Couldn't find or create new group for %s on %s/%u\n", &grec->grec_mca, intn);
+				mld_log(LOG_WARNING, "L4:IPv6:ICMPv6:MLD2_Report Couldn't find or create new group", &grec->grec_mca, intn);
 			}
 		}
 
@@ -1698,7 +1708,7 @@ static void l4_ipv6_icmpv6_mld2_report(struct intnode *intn, struct mld2_report 
 					grec->grec_type == MLD2_BLOCK_OLD_SOURCES ?
 					MLD2_MODE_IS_INCLUDE : MLD2_MODE_IS_EXCLUDE))
 				{
-					mld_log(LOG_WARNING, "Couldn't refresh subscription to %s for %s/%u\n",
+					mld_log(LOG_WARNING, "Couldn't refresh subscription",
 						&grec->grec_mca, intn);
 					return;
 				}
@@ -1724,7 +1734,7 @@ static void l4_ipv6_icmpv6_mld2_report(struct intnode *intn, struct mld2_report 
 						grec->grec_type == MLD2_BLOCK_OLD_SOURCES ?
 						MLD2_MODE_IS_EXCLUDE : MLD2_MODE_IS_INCLUDE))
 					{
-						mld_log(LOG_ERR, "Couldn't subscribe sourced from %s on %s/%u\n", src, intn);
+						mld_log(LOG_ERR, "Couldn't subscribe sourced", src, intn);
 					}
 				}
 
@@ -1996,11 +2006,14 @@ static void l4_ipv6_icmpv6(struct intnode *intn, struct ip6_hdr *iph, const uint
 	icmpv6->icmp6_cksum = ipv6_checksum(iph, IPPROTO_ICMPV6, icmpv6, plen);
 	if (icmpv6->icmp6_cksum != csum)
 	{
-		dolog(LOG_WARNING, "CORRUPT->DROP (%s): Received a ICMPv6 %s (%u) with wrong checksum (%x vs %x)\n",
+		dolog(LOG_WARNING, "CORRUPT->DROP (%s): Received a ICMPv6 %s/%s (%u:%u) with wrong checksum (%x vs %x)\n",
 			intn->name,
-			icmpv6_type(icmpv6->icmp6_type), icmpv6->icmp6_type,
-			icmpv6_code(icmpv6->icmp6_type, icmpv6->icmp6_code), icmpv6->icmp6_code,
-			icmpv6->icmp6_cksum, csum);
+			icmpv6_type(icmpv6->icmp6_type),
+			icmpv6_code(icmpv6->icmp6_type, icmpv6->icmp6_code),
+			icmpv6->icmp6_type,
+			icmpv6->icmp6_code,
+			icmpv6->icmp6_cksum,
+			csum);
 	}
 
 	dolog(LOG_DEBUG, "Received ICMPv6: %s (%u), %s (%u) received on %s\n",
@@ -2045,7 +2058,7 @@ static void l4_ipv6_icmpv6(struct intnode *intn, struct ip6_hdr *iph, const uint
 
 	if (!(IN6_IS_ADDR_LINKLOCAL(&iph->ip6_src)))
 	{
-		mld_log(LOG_WARNING, "Ignoring non-LinkLocal MLD from %s received on %s/%u\n", &iph->ip6_src, intn);
+		mld_log(LOG_WARNING, "Ignoring non-LinkLocal MLD", &iph->ip6_src, intn);
 		return;
 	}
 

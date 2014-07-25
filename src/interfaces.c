@@ -224,7 +224,7 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 	if (if_indextoname(ifindex, intn->name) == NULL)
 #endif
 	{
-		dolog(LOG_ERR, "Couldn't determine interfacename of link %d : %s\n", intn->ifindex, strerror(errno));
+		dolog(LOG_ERR, "Couldn't determine interfacename of link %" PRIu64 " : %s\n", intn->ifindex, strerror(errno));
 		int_destroy(intn);
 		close(sock);
 		return NULL;
@@ -242,7 +242,7 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 	/* We will use that for fragmentation */
 	if (ioctl(sock, SIOCGIFMTU, &ifreq) != 0)
 	{
-		dolog(LOG_ERR, "Couldn't determine MTU size for %s, link %d : %s\n", intn->name, intn->ifindex, strerror(errno));
+		dolog(LOG_ERR, "Couldn't determine MTU size for %s, link %" PRIu64 " : %s\n", intn->name, intn->ifindex, strerror(errno));
 		int_destroy(intn);
 		close(sock);
 		return NULL;
@@ -263,7 +263,7 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 	/* Get hardware address + type */
 	if (ioctl(sock, SIOCGIFHWADDR, &ifreq) != 0)
 	{
-		dolog(LOG_ERR, "Couldn't determine hardware address for %s, link %d : %s\n", intn->name, intn->ifindex, strerror(errno));
+		dolog(LOG_ERR, "Couldn't determine hardware address for %s, link %" PRIu64 " : %s\n", intn->name, intn->ifindex, strerror(errno));
 		int_destroy(intn);
 		close(sock);
 		return NULL;
@@ -300,8 +300,8 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 		err = ioctl(sock, SIOCGIFFLAGS, &ifr);
 		if (err)
 		{
-			dolog(LOG_WARNING, "Couldn't get interface flags of %u/%s: %s\n",
-				intn->ifindex, intn->name, strerror(errno));
+			dolog(LOG_WARNING, "Couldn't get interface flags of %s/%" PRIu64 ": %s\n",
+				intn->name, intn->ifindex, strerror(errno));
 		}
 		else
 		{
@@ -310,8 +310,8 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 			err = ioctl(sock, SIOCSIFFLAGS, &ifr);
 			if (err)
 			{
-				dolog(LOG_WARNING, "Couldn't get interface flags of %u/%s: %s\n",
-					intn->ifindex, intn->name, strerror(errno));
+				dolog(LOG_WARNING, "Couldn't get interface flags of %s/%" PRIu64 ": %s\n",
+					intn->name, intn->ifindex, strerror(errno));
 			}
 		}
 	}
@@ -415,8 +415,15 @@ void int_set_mld_version(struct intnode *intn, unsigned int newversion)
 		if (	intn->mld_version == 0 &&
 			intn->mld_version != 1)
 		{
-			if (intn->mld_version > 1) dolog(LOG_DEBUG, "MLDv1 Query detected on %s, downgrading from MLDv%u to MLDv1\n", intn->mld_version, intn->name);
-			else dolog(LOG_DEBUG, "MLDv1 detected on %s, setting it to MLDv1\n", intn->name);
+			if (intn->mld_version > 1)
+			{
+				dolog(LOG_DEBUG, "MLDv1 Query detected on %s, downgrading from MLDv%" PRIu64 " to MLDv1\n", intn->name, intn->mld_version);
+			}
+			else
+			{
+				dolog(LOG_DEBUG, "MLDv1 detected on %s, setting it to MLDv1\n", intn->name);
+			}
+
 			intn->mld_version = 1;
 			intn->mld_last_v1 = gettimes();
 		}
@@ -431,7 +438,7 @@ void int_set_mld_version(struct intnode *intn, unsigned int newversion)
 		if (	intn->mld_last_v1 != 0 &&
 			(gettimes() > (intn->mld_last_v1 + ECMH_SUBSCRIPTION_TIMEOUT)))
 		{
-			dolog(LOG_DEBUG, "MLDv1 has not been seen for %u seconds on %s, allowing upgrades\n", 
+			dolog(LOG_DEBUG, "MLDv1 has not been seen for %" PRIu64 " seconds on %s, allowing upgrades\n", 
 				(intn->mld_last_v1 + ECMH_SUBSCRIPTION_TIMEOUT), intn->name);
 			/* Reset the version */
 			intn->mld_version = 0;
@@ -453,7 +460,7 @@ void int_set_mld_version(struct intnode *intn, unsigned int newversion)
 			intn->mld_version != 1 &&
 			intn->mld_version != 2)
 		{
-			dolog(LOG_DEBUG, "MLDv%u detected on %s/%u, setting it to MLDv%u\n",
+			dolog(LOG_DEBUG, "MLDv%u detected on %s/%" PRIu64 ", setting it to MLDv%u\n",
 				newversion, intn->name, intn->ifindex, newversion);
 			intn->mld_version = newversion;
 		}

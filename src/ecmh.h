@@ -7,10 +7,14 @@
 #define ECMH_H "ECMH"
 
 #ifdef __GNUC__
+#define ATTR_RESTRICT __restrict
+#define ATTR_FORMAT(type, x, y) __attribute__ ((format(type, x, y)))
 #define PACKED __attribute__((packed))
 #define ALIGNED __attribute__((aligned))
 #define UNUSED __attribute__ ((__unused__))
 #else
+#define ATTR_FORMAT(type, x, y)	/* nothing */
+#define ATTR_RESTRICT		/* nothing */
 #define PACKED
 #define ALIGNED
 #define UNUSED
