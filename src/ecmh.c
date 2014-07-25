@@ -2396,7 +2396,7 @@ static void sigusr1(int i)
 #ifndef ECMH_BPF
 			(intn->hwaddr.sa_family == ARPHRD_ETHER ? "Ethernet" : 
 			 (intn->hwaddr.sa_family == ARPHRD_SIT ? "sit" : "Unknown")),
-			intn->hwaddr.sa_family
+			(uint64_t)intn->hwaddr.sa_family
 #else
 			(intn->dlt == DLT_NULL ? "Null":
 			 (intn->dlt == DLT_EN10MB ? "Ethernet" : "Unknown")),
