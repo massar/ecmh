@@ -162,6 +162,8 @@ struct conf
 #define ETH_P_IPV6	0x86dd
 #endif
 
+#define memzero(obj,len) memset(obj,0,len)
+
 /* Global Stuff */
 extern struct conf *g_conf;
 

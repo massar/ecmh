@@ -40,7 +40,7 @@ static bool int_create_bpf(struct intnode *intn, bool tunnel)
 		dolog(LOG_INFO, "Opened %s as a BPF device for %s\n", devname, intn->name);
 
 		/* Bind it to the interface */
-		memset(&ifr, 0, sizeof(ifr));
+		memzero(&ifr, sizeof(ifr));
 		strncpy(ifr.ifr_name, intn->name, sizeof(ifr.ifr_name));
 
 		if (ioctl(intn->socket, BIOCSETIF, &ifr))
@@ -126,7 +126,7 @@ static bool int_create_bpf(struct intnode *intn, bool tunnel)
 			return false;
 		}
 
-		memset(&iflr, 0, sizeof(iflr));
+		memzero(&iflr, sizeof(iflr));
 		strncpy(iflr.iflr_name, intn->name, sizeof(iflr.iflr_name));
  
 		/*
@@ -182,7 +182,7 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 		}
 
 		/* Clear out the new memory */
-		memset(&g_conf->ints[g_conf->maxinterfaces], 0, sizeof(struct intnode)*((ifindex+1)-g_conf->maxinterfaces));
+		memzero(&g_conf->ints[g_conf->maxinterfaces], sizeof(struct intnode)*((ifindex+1)-g_conf->maxinterfaces));
 
 		/* Configure the new maximum */
 		g_conf->maxinterfaces = (ifindex+1);
@@ -203,7 +203,7 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 		return NULL;
 	}
 
-	memset(intn, 0, sizeof(*intn));
+	memzero(intn, sizeof(*intn));
 
 	intn->ifindex = ifindex;
 
@@ -216,7 +216,7 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 
 	/* Get the interface name (eth0/sit0/...) */
 	/* Will be used for reports etc */
-	memset(&ifreq, 0, sizeof(ifreq));
+	memzero(&ifreq, sizeof(ifreq));
 	ifreq.ifr_ifindex = ifindex;
 #ifdef SIOCGIFNAME
 	if (ioctl(sock, SIOCGIFNAME, &ifreq) != 0)
@@ -285,7 +285,7 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 		struct ifreq ifr;
 		int err;
 
-		memset(&ifr, 0, sizeof(ifr));
+		memzero(&ifr, sizeof(ifr));
 		strncpy(ifr.ifr_name, intn->name, sizeof(ifr.ifr_name));
 		err = ioctl(sock, SIOCGIFFLAGS, &ifr);
 		if (err)
@@ -467,7 +467,7 @@ void local_update(struct intnode *intn)
 	struct in_addr		any;
 
 	/* Any IPv4 address */
-	memset(&any, 0, sizeof(any));
+	memzero(&any, sizeof(any));
 
 	for (num=0;num<INTNODE_MAXIPV4;num++)
 	{

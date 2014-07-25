@@ -20,7 +20,7 @@ struct subscrnode *subscr_create(const struct in6_addr *ipv6, int mode)
 D(
 	{
 		char addr[INET6_ADDRSTRLEN];
-		memset(addr,0,sizeof(addr));
+		memzero(addr, sizeof(addr));
 		inet_ntop(AF_INET6, &subscrn->ipv6, addr, sizeof(addr));
 		dolog(LOG_DEBUG, "Adding subscription %s (%s)\n", addr,
 			subscrn->mode == MLD2_MODE_IS_INCLUDE ? "INCLUDE" : "EXCLUDE");
@@ -38,7 +38,7 @@ void subscr_destroy(struct subscrnode *subscrn)
 D(
 	{
 		char addr[INET6_ADDRSTRLEN];
-		memset(addr,0,sizeof(addr));
+		memzero(addr, sizeof(addr));
 		inet_ntop(AF_INET6, &subscrn->ipv6, addr, sizeof(addr));
 		dolog(LOG_DEBUG, "Destroying subscription %s (%s)\n", addr,
 			subscrn->mode == MLD2_MODE_IS_INCLUDE ? "INCLUDE" : "EXCLUDE");

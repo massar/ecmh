@@ -23,7 +23,7 @@ static struct groupnode *group_create(const struct in6_addr *mca)
 D(
 	{
 		char mca_txt[INET6_ADDRSTRLEN];
-		memset(mca_txt,0,sizeof(mca_txt));
+		memzero(mca_txt, sizeof(mca_txt));
 		inet_ntop(AF_INET6, mca, mca_txt, sizeof(mca_txt));
 		dolog(LOG_DEBUG, "Created group %s\n", mca_txt);
 	}
@@ -40,7 +40,7 @@ void group_destroy(struct groupnode *groupn)
 D(
 	{
 		char mca_txt[INET6_ADDRSTRLEN];
-		memset(mca_txt,0,sizeof(mca_txt));
+		memzero(mca_txt, sizeof(mca_txt));
 		inet_ntop(AF_INET6, &groupn->mca, mca_txt, sizeof(mca_txt));
 		dolog(LOG_DEBUG, "Destroying group %s\n", mca_txt);
 	}

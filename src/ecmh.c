@@ -273,7 +273,7 @@ static void update_interfaces(struct intnode *intn)
 	/* Format "fe80000000000000029027fffe24bbab 02 0a 20 80     eth0" */
 	while (fgets(buf, sizeof(buf), file))
 	{
-		memset(&addr, 0, sizeof(addr));
+		memzero(&addr, sizeof(addr));
 
 		for (i = 0; i < 16; i++)
 		{
@@ -389,7 +389,7 @@ static void update_interfaces(struct intnode *intn)
 		{
 #if 0
 				char txt[INET6_ADDRSTRLEN];
-				memset(txt,0,sizeof(txt));
+				memzero(txt, sizeof(txt));
 				inet_ntop(AF_INET6, &addr, txt, sizeof(txt));
 				dolog(LOG_DEBUG, "Ignoring other IPv6 address %s on interface %s\n", txt,
 #ifndef ECMH_GETIFADDR
@@ -453,12 +453,12 @@ static void update_interfaces(struct intnode *intn)
 					struct in_addr any;
 #ifdef DEBUG
 					char txt[INET6_ADDRSTRLEN];
-					memset(txt,0,sizeof(txt));
+					memzero(txt, sizeof(txt));
 					inet_ntop(AF_INET, &addr, txt, sizeof(txt));
 #endif
 
 					/* Any is empty */
-					memset(&any, 0, sizeof(any));
+					memzero(&any, sizeof(any));
 
 					/* Update the Local IPv4 address */
 #ifdef DEBUG
@@ -501,7 +501,7 @@ static void update_interfaces(struct intnode *intn)
 #endif /* ECMH_GETIFADDR */
 					char txt[INET6_ADDRSTRLEN];
 
-					memset(txt,0,sizeof(txt));
+					memzero(txt, sizeof(txt));
 					inet_ntop(AF_INET6, &addr, txt, sizeof(txt));
 
 					/* Update the global address */
@@ -571,7 +571,7 @@ static void sendpacket6(struct intnode *intn, const struct ip6_hdr *iph, const u
 #ifndef ECMH_BPF
 	struct sockaddr_ll	sa;
 
-	memset(&sa, 0, sizeof(sa));
+	memzero(&sa, sizeof(sa));
 
 	sa.sll_family	= AF_PACKET;
 	sa.sll_protocol	= htons(ETH_P_IPV6);
@@ -610,7 +610,7 @@ static void sendpacket6(struct intnode *intn, const struct ip6_hdr *iph, const u
 	 * Construct a Ethernet MAC address from the IPv6 destination multicast address.
 	 * Per RFC2464
 	 */
-	memset(&hdr_eth, 0, sizeof(hdr_eth));
+	memzero(&hdr_eth, sizeof(hdr_eth));
 	hdr_eth.ether_dhost[0] = 0x33;
 	hdr_eth.ether_dhost[1] = 0x33;
 	hdr_eth.ether_dhost[2] = iph->ip6_dst.s6_addr[12];
@@ -639,7 +639,7 @@ static void sendpacket6(struct intnode *intn, const struct ip6_hdr *iph, const u
 	else
 	{	
 		/* Construct the proto-41 packet */
-		memset(&hdr_ip, 0, sizeof(hdr_ip));
+		memzero(&hdr_ip, sizeof(hdr_ip));
 		hdr_ip.ip_v 	= 4;
 		hdr_ip.ip_hl	= 5;
 		hdr_ip.ip_tos	= 0;
@@ -726,7 +726,7 @@ static void icmp6_send(struct intnode *intn, const struct in6_addr *src, int typ
 		
 	} packet;
 
-	memset(&packet, 0, sizeof(packet));
+	memzero(&packet, sizeof(packet));
 
 	/* Create the IPv6 packet */
 	packet.ip6.ip6_vfc	= 0x60;
@@ -802,7 +802,7 @@ static void mld_send_query(struct intnode *intn, const struct in6_addr *mca, con
 	/* Don't send queries to upstreams */
 	if (intn->upstream) return;
 
-	memset(&packet, 0, sizeof(packet));
+	memzero(&packet, sizeof(packet));
 
 	/* Create the IPv6 packet */
 	packet.ip6.ip6_vfc		= 0x60;
@@ -914,7 +914,7 @@ static void mld1_send_report(struct intnode *intn, const struct in6_addr *mca)
 		
 	} packet;
 
-	memset(&packet, 0, sizeof(packet));
+	memzero(&packet, sizeof(packet));
 
 	/* Create the IPv6 packet */
 	packet.ip6.ip6_vfc		= 0x60;
@@ -1457,7 +1457,7 @@ static void mld_log(unsigned int level, const char *fmt, const struct in6_addr *
 {
 	char mca[INET6_ADDRSTRLEN];
 
-	memset(mca,0,sizeof(mca));
+	memzero(mca, sizeof(mca));
 	inet_ntop(AF_INET6, i_mca, mca, sizeof(mca));
 	dolog(level, fmt, mca, intn->name, intn->ifindex);
 }
@@ -1508,7 +1508,7 @@ static void l4_ipv6_icmpv6_mld1_report(struct intnode *intn, struct mld1 *mld1)
 	}
 
 	/* No source address, so use any */
-	memset(&any, 0, sizeof(any));
+	memzero(&any, sizeof(any));
 	
 	if (!grpint_refresh(grpintn, &any, MLD2_MODE_IS_INCLUDE))
 	{
@@ -1577,7 +1577,7 @@ static void l4_ipv6_icmpv6_mld1_reduction(struct intnode *intn, struct mld1 *mld
 	}
 
 	/* No source address, so use any */
-	memset(&any, 0, sizeof(any));
+	memzero(&any, sizeof(any));
 
 	if (!subscr_unsub(grpintn->subscriptions, &any))
 	{
@@ -1636,9 +1636,9 @@ static void l4_ipv6_icmpv6_mld2_report(struct intnode *intn, struct mld2_report 
 	}
 
 	/* Zero out just in case */
-	memset(&mca, 0, sizeof(mca));
-	memset(&srct, 0, sizeof(srct));
-	memset(&any, 0, sizeof(any));
+	memzero(&mca, sizeof(mca));
+	memzero(&srct, sizeof(srct));
+	memzero(&any, sizeof(any));
 
 	while (ngrec > 0)
 	{
@@ -2480,7 +2480,7 @@ static void send_mld_querys(void)
 	dolog(LOG_DEBUG, "Sending MLD Queries\n");
 
 	/* We want to know about all the groups */
-	memset(&any,0,sizeof(any));
+	memzero(&any, sizeof(any));
 
 	/* Send MLD query's */
 	/* Use listloop2 as the node can disappear in sendpacket() */
@@ -2605,7 +2605,7 @@ static bool handleinterfaces(void *buffer)
 	socklen_t		salen;
 
 	salen = sizeof(sa);
-	memset(&sa, 0, sizeof(sa));
+	memzero(&sa, sizeof(sa));
 	len = recvfrom(g_conf->rawsocket, buffer, g_conf->bufferlen, 0, (struct sockaddr *)&sa, &salen);
 
 	if (len == -1)
@@ -2667,7 +2667,7 @@ static bool handleinterfaces(void *buffer)
 	/* What we want to know */
 	memcpy(&fd_read, &g_conf->selectset, sizeof(fd_read));
 
-	memset(&timeout, 0, sizeof(timeout));
+	memzero(&timeout, sizeof(timeout));
 	timeout.tv_sec = 5;
 
 	i = select(g_conf->hifd+1, &fd_read, NULL, NULL, &timeout);
@@ -2996,7 +2996,7 @@ int main(int argc, char *argv[])
 
 #ifdef _LINUX
 	/* Change scheduler for higher accuracy */
-	memset(&schedparam, 0, sizeof(schedparam));
+	memzero(&schedparam, sizeof(schedparam));
 	schedparam.sched_priority = 99;
 
 	if (sched_setscheduler(0, SCHED_FIFO, &schedparam) == -1)

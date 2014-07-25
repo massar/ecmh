@@ -180,7 +180,7 @@ struct tr6_resp {
 		u_char maskarray[8] = \
 		{0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe, 0xff}; \
 		int bytelen, bitlen, i; \
-		memset(&(mask6), 0, sizeof(mask6));\
+		memzero(&(mask6), sizeof(mask6));\
 		bytelen = (masklen) / 8;\
 		bitlen = (masklen) % 8;\
 		for (i = 0; i < bytelen; i++) \
