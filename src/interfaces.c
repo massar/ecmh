@@ -298,7 +298,7 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 		memzero(&ifr, sizeof(ifr));
 		strncpy(ifr.ifr_name, intn->name, sizeof(ifr.ifr_name));
 		err = ioctl(sock, SIOCGIFFLAGS, &ifr);
-		if (err)
+		if (err != 0)
 		{
 			dolog(LOG_WARNING, "Couldn't get interface flags of %s/%" PRIu64 ": %s\n",
 				intn->name, intn->ifindex, strerror(errno));
@@ -308,10 +308,15 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 			/* Should use IFF_ALLMULTI, but that is not supported... */
 			ifr.ifr_flags |= IFF_PROMISC;
 			err = ioctl(sock, SIOCSIFFLAGS, &ifr);
-			if (err)
+			if (err != 0)
 			{
 				dolog(LOG_WARNING, "Couldn't get interface flags of %s/%" PRIu64 ": %s\n",
 					intn->name, intn->ifindex, strerror(errno));
+			}
+			else
+			{
+				dolog(LOG_DEBUG, "Interface %s/%" PRIu64 " is now promiscuous\n",
+					intn->name, intn->ifindex);
 			}
 		}
 	}
