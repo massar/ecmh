@@ -35,6 +35,10 @@ struct intnode
 	struct in6_addr	linklocal;		/* Link local address */
 	struct in6_addr	global;			/* Global unicast address */
 
+#ifdef ECMH_BPF
+	uint8_t		__padding2[4];
+#endif
+
 	/* Per interface statistics */
 	uint64_t	stat_packets_received;	/* Number of packets received */
 	uint64_t	stat_packets_sent;	/* Number of packets sent */
