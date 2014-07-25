@@ -43,7 +43,7 @@
 #include <net/if.h>
 #include <netinet/if_ether.h>
 #include <sched.h>
-#ifdef linux
+#ifdef __linux__
 #include <netpacket/packet.h>
 #endif
 #if defined(__FreeBSD__) || defined(__MACH__)
