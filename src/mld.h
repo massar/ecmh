@@ -24,12 +24,12 @@
 
 /* Per RFC */
 struct mld1 {
-        __u8		type;
-        __u8		code;
-        __u16		csum;
-        __u16		mrc;
-        __u16		resv1;
-        struct in6_addr	mca;
+	__u8		type;
+	__u8		code;
+	__u16		csum;
+	__u16		mrc;
+	__u16		resv1;
+	struct in6_addr	mca;
 };
 
 /* MLDv2 Report */

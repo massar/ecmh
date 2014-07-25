@@ -54,7 +54,7 @@ static bool int_create_bpf(struct intnode *intn, bool tunnel)
 		{
 			if (ioctl(intn->socket, BIOCPROMISC))
 			{
-			    	dolog(LOG_ERR, "Could not set %s to promisc: %s (%d)\n", intn->name, strerror(errno), errno);
+			 	dolog(LOG_ERR, "Could not set %s to promisc: %s (%d)\n", intn->name, strerror(errno), errno);
 				return false;
 			}
 			dolog(LOG_INFO, "BPF interface for %s is now promiscious\n", intn->name);
@@ -80,7 +80,7 @@ static bool int_create_bpf(struct intnode *intn, bool tunnel)
 		}
 		if (intn->dlt != DLT_NULL && intn->dlt != DLT_EN10MB)
 		{
-		    	dolog(LOG_ERR, "Only NULL and EN10MB (Ethernet) as a DLT are supported, this DLT is %u\n", intn->dlt);
+		 	dolog(LOG_ERR, "Only NULL and EN10MB (Ethernet) as a DLT are supported, this DLT is %u\n", intn->dlt);
 			return false;
 		}
 		dolog(LOG_INFO, "BPF's DLT is %s\n", intn->dlt == DLT_EN10MB ? "Ethernet" : (intn->dlt == DLT_NULL ? "Null" : "??"));
@@ -287,7 +287,7 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 
 		memset(&ifr, 0, sizeof(ifr));
 		strncpy(ifr.ifr_name, intn->name, sizeof(ifr.ifr_name));
-        	err = ioctl(sock, SIOCGIFFLAGS, &ifr);
+		err = ioctl(sock, SIOCGIFFLAGS, &ifr);
 		if (err)
 		{
 			dolog(LOG_WARNING, "Couldn't get interface flags of %u/%s: %s\n",
