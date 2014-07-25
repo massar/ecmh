@@ -567,7 +567,7 @@ static void update_interfaces(struct intnode *intn)
 static void sendpacket6(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t len);
 static void sendpacket6(struct intnode *intn, const struct ip6_hdr *iph, const uint16_t len)
 {
-	int     sent;
+	int			sent;
 #ifndef ECMH_BPF
 	struct sockaddr_ll	sa;
 
@@ -1083,18 +1083,18 @@ static void mld2_send_report(struct intnode *intn, const struct in6_addr *mca)
 				/* Any sources already? */
 				if (src)
 				{
-				    	/* No grec? */
+					/* No grec? */
 					if (!grec)
 					{
 						dolog(LOG_WARNING, "No grec but we do have a source!\n");
 						continue;
 					}
-				    
+
 					/* Unspecified address but already have sources to include? */
 					if (IN6_IS_ADDR_UNSPECIFIED(&subscrn->ipv6))
 					{
-					    	/* Remove former sources */
-					    	grec->grec_nsrcs = 0;
+					 	/* Remove former sources */
+					 	grec->grec_nsrcs = 0;
 
 						/* Jump to exclude mode with 0 sources -> Anything */
 						grec->grec_type = MLD2_MODE_IS_EXCLUDE;
@@ -1298,7 +1298,7 @@ static void mld_send_report_all(struct intnode *interface, const struct in6_addr
 		 * - Skip unconfigured interfaces
 		 * - Skip the interface it came from
 		 */
-		if (    intn->mtu == 0 ||
+		if (	intn->mtu == 0 ||
 			interface->ifindex == intn->ifindex) continue;
 
 		/* Send the MLD Report */
@@ -1370,8 +1370,8 @@ static void l4_ipv4_proto41(struct intnode *intn, struct ip *iph, const void *pa
 		{
 	   	 	char buf[1024],buf2[1024];
 
-	    		inet_ntop(AF_INET, &iph->ip_src, (char *)&buf, sizeof(buf));
-	    		inet_ntop(AF_INET, &iph->ip_dst, (char *)&buf2, sizeof(buf));
+			inet_ntop(AF_INET, &iph->ip_src, (char *)&buf, sizeof(buf));
+	 		inet_ntop(AF_INET, &iph->ip_dst, (char *)&buf2, sizeof(buf));
 			dolog(LOG_ERR, "Couldn't find proto-41 tunnel %s->%s\n", buf, buf2);
 		}
 
@@ -2715,8 +2715,8 @@ static bool handleinterfaces(void *buffer)
 			bp < ep;
 			bp = ((uint8_t *)bp) + BPF_WORDALIGN(bhp->bh_caplen + bhp->bh_hdrlen))
 		{
-		    	bhp = (struct bpf_hdr *)bp;
-		    	buffer = ((uint8_t *)bp) + bhp->bh_hdrlen;
+		 	bhp = (struct bpf_hdr *)bp;
+		  	buffer = ((uint8_t *)bp) + bhp->bh_hdrlen;
 
 			intn->stat_packets_received++;
 			intn->stat_bytes_received += bhp->bh_caplen;
@@ -2756,7 +2756,7 @@ int main(int argc, char *argv[])
 	bool			quit = false;
 	struct intnode		*intn;
 #ifdef _LINUX
-        struct sched_param      schedparam;
+	struct sched_param	schedparam;
 #endif
 
 	init();
@@ -2844,9 +2844,9 @@ int main(int argc, char *argv[])
 			fprintf(stderr,
 				"%s [-f] [-u username] [-i interface]"
 #ifdef ECMH_BPF
-			       " [-t|-T]"
+				" [-t|-T]"
 #endif
-			       " [-v] [-V]"
+			 	" [-v] [-V]"
 #ifdef ECMH_SUPPORT_MLD2
 				" [-1|-2]"
 #endif
@@ -2878,7 +2878,7 @@ int main(int argc, char *argv[])
 #ifndef ECMH_BPF
 				" (default)"
 #endif
-				"\n"				
+				"\n"
 				"\n"
 				"Report bugs to Jeroen Massar <jeroen@massar.ch>.\n"
 				"Also see the website at http://unfix.org/projects/ecmh/\n"
@@ -3052,7 +3052,7 @@ int main(int argc, char *argv[])
 	/* Cleanup the nodes
 	 * First the groups, otherwise the references to the
 	 * names are gone when we need them when displaying
-         * the group deletions from the interfaces ;)
+	 * the group deletions from the interfaces ;)
 	 */
 	list_delete_all_node(g_conf->groups);
 
