@@ -247,6 +247,16 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 		close(sock);
 		return NULL;
 	}
+
+	if (ifreq.ifr_mtu < 1280)
+	{
+		dolog(LOG_ERR, "MTU size for %s is %u which is less than the IPv6 minimum of 1280\n", intn->name, ifreq.ifr_mtu);
+		int_destroy(intn);
+		close(sock);
+		return NULL;
+	}
+
+	/* The accepted MTU */
 	intn->mtu = ifreq.ifr_mtu;
 
 #ifndef ECMH_BPF
