@@ -34,7 +34,6 @@ struct intnode
 
 	struct in6_addr	linklocal;		/* Link local address */
 	struct in6_addr	global;			/* Global unicast address */
-	char		__padding2[4];
 
 	/* Per interface statistics */
 	uint64_t	stat_packets_received;	/* Number of packets received */
