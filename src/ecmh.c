@@ -531,7 +531,7 @@ static void update_interfaces(struct intnode *intn)
 			{
 				if (gotlinkl || gotglobal || gotipv4)
 				{
-					dolog(LOG_DEBUG, "Added %s, link %u, hw %s/%u with an MTU of %d\n",
+					dolog(LOG_DEBUG, "Added %s, link %" PRIu64 ", hw %s/%u with an MTU of %d\n",
 						intn->name, intn->ifindex,
 #ifndef ECMH_BPF
 						(intn->hwaddr.sa_family == ARPHRD_ETHER ? "Ethernet" : 
@@ -2935,9 +2935,20 @@ int main(int argc, char *argv[])
 
 	/* Show our version in the startup logs ;) */
 	dolog(LOG_INFO, ECMH_VERSION_STRING, ECMH_VERSION, ECMH_GITHASH);
+
 #ifdef ECMH_BPF
 	dolog(LOG_INFO, "Tunnelmode is %s\n", g_conf->tunnelmode ? "Active" : "Disabled");
 #endif
+
+	dolog(LOG_INFO, "Determining names using %s\n",
+#ifdef SIOCGIFNAME
+		"SIOCGIFNAME ioctl"
+#else
+		"if_indextoname"
+#endif
+	);
+
+
 	if (g_conf->upstream)
 	{
 		dolog(LOG_INFO, "Using %s as an upstream interface\n", g_conf->upstream);
