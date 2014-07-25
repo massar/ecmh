@@ -12,7 +12,7 @@
 ECMH=ecmh
 
 # The version of this release
-ECMH_VERSION=2014.07.09
+ECMH_VERSION=2014.07.25
 
 # ECMH Compile Time Options
 # Append one of the following option on wish to
