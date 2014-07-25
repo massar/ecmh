@@ -217,11 +217,11 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 	/* Get the interface name (eth0/sit0/...) */
 	/* Will be used for reports etc */
 	memset(&ifreq, 0, sizeof(ifreq));
-#ifdef SIOCGIFNAME
 	ifreq.ifr_ifindex = ifindex;
+#ifdef SIOCGIFNAME
 	if (ioctl(sock, SIOCGIFNAME, &ifreq) != 0)
 #else
-        if (if_indextoname(ifindex, intn->name) == NULL)
+	if (if_indextoname(ifindex, intn->name) == NULL)
 #endif
 	{
 		dolog(LOG_ERR, "Couldn't determine interfacename of link %d : %s\n", intn->ifindex, strerror(errno));
@@ -229,9 +229,12 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 		close(sock);
 		return NULL;
 	}
-#ifdef ECMH_BPF
+
+#ifdef SIOCGIFNAME
+	/* We just requested the name, use it */
 	memcpy(&intn->name, &ifreq.ifr_name, sizeof(intn->name));
 #else
+	/* Put the name in the request */
 	memcpy(&ifreq.ifr_name, &intn->name, sizeof(ifreq.ifr_name));
 #endif
 
@@ -240,7 +243,6 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 	if (ioctl(sock, SIOCGIFMTU, &ifreq) != 0)
 	{
 		dolog(LOG_ERR, "Couldn't determine MTU size for %s, link %d : %s\n", intn->name, intn->ifindex, strerror(errno));
-		perror("Error");
 		int_destroy(intn);
 		close(sock);
 		return NULL;
@@ -252,7 +254,6 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 	if (ioctl(sock, SIOCGIFHWADDR, &ifreq) != 0)
 	{
 		dolog(LOG_ERR, "Couldn't determine hardware address for %s, link %d : %s\n", intn->name, intn->ifindex, strerror(errno));
-		perror("Error");
 		int_destroy(intn);
 		close(sock);
 		return NULL;
