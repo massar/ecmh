@@ -80,7 +80,7 @@ static bool int_create_bpf(struct intnode *intn, bool tunnel)
 		}
 		if (intn->dlt != DLT_NULL && intn->dlt != DLT_EN10MB)
 		{
-		 	dolog(LOG_ERR, "Only NULL and EN10MB (Ethernet) as a DLT are supported, this DLT is %u\n", intn->dlt);
+		 	dolog(LOG_ERR, "Only NULL and EN10MB (Ethernet) DLT are supported as DLTs, this DLT is %" PRIu64 "\n", intn->dlt);
 			return false;
 		}
 		dolog(LOG_INFO, "BPF's DLT is %s\n", intn->dlt == DLT_EN10MB ? "Ethernet" : (intn->dlt == DLT_NULL ? "Null" : "??"));
@@ -90,7 +90,8 @@ static bool int_create_bpf(struct intnode *intn, bool tunnel)
 			dolog(LOG_ERR, "Could not get %s's BufferLen: %s (%d)\n", intn->name, strerror(errno), errno);
 			return false;
 		}
-		dolog(LOG_INFO, "BPF's bufferLength is %u\n", intn->bufferlen);
+
+		dolog(LOG_INFO, "BPF's bufferLength is %" PRIu64 "\n", intn->bufferlen);
 
 		/* Is this buffer bigger than what we have allocated? -> Upgrade */
 		if (intn->bufferlen > g_conf->bufferlen)
@@ -100,7 +101,7 @@ static bool int_create_bpf(struct intnode *intn, bool tunnel)
 			g_conf->buffer = calloc(1, g_conf->bufferlen);
 			if (!g_conf->buffer)
 			{
-				dolog(LOG_ERR, "Couldn't increase bufferlength to %u\n", g_conf->bufferlen);
+				dolog(LOG_ERR, "Couldn't increase bufferlength to %" PRIu64 "\n", g_conf->bufferlen);
 				dolog(LOG_ERR, "Expecting a memory shortage, exiting\n");
 				exit(-1);
 			}
@@ -217,8 +218,9 @@ struct intnode *int_create(unsigned int ifindex, bool tunnel)
 	/* Get the interface name (eth0/sit0/...) */
 	/* Will be used for reports etc */
 	memzero(&ifreq, sizeof(ifreq));
-	ifreq.ifr_ifindex = ifindex;
+
 #ifdef SIOCGIFNAME
+	ifreq.ifr_ifindex = ifindex;
 	if (ioctl(sock, SIOCGIFNAME, &ifreq) != 0)
 #else
 	if (if_indextoname(ifindex, intn->name) == NULL)

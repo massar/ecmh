@@ -549,7 +549,7 @@ static void update_interfaces(struct intnode *intn)
 #else
 						(intn->dlt == DLT_NULL ? "Null":
 						 (intn->dlt == DLT_EN10MB ? "Ethernet" : "Unknown")),
-						intn->dlt,
+						(unsigned int)intn->dlt,
 #endif
 						intn->mtu);
 				}
@@ -637,7 +637,7 @@ static void sendpacket6(struct intnode *intn, const struct ip6_hdr *iph, const u
 		vector[1].iov_base	= (void *)iph;
 		vector[1].iov_len 	= len;
 
-		dolog(LOG_DEBUG, "Sending Native IPv6 packet over %s/%u\n", intn->name, intn->ifindex);
+		dolog(LOG_DEBUG, "Sending Native IPv6 packet over %s/%" PRIu64 "\n", intn->name, intn->ifindex);
 		sent = writev(intn->socket, vector, 2);
 	}
 
@@ -684,7 +684,7 @@ static void sendpacket6(struct intnode *intn, const struct ip6_hdr *iph, const u
 		vector[2].iov_base	= (void *)iph;
 		vector[2].iov_len 	= len;
 
-		dolog(LOG_DEBUG, "Sending proto-41 IPv6 packet for %s/%u over %s/%u\n",
+		dolog(LOG_DEBUG, "Sending proto-41 IPv6 packet for %s/%" PRIu64 " over %s/%" PRIu64 "\n",
 			intn->name, intn->ifindex, intn->master->name, intn->master->ifindex);
 		sent = writev(intn->master->socket, vector, 3);
 	}

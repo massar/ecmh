@@ -55,6 +55,19 @@ LDLIBS += -lrt
 endif
 
 ########################################################
+# Determine the Compiler Type
+# this as clang is a bit more strict at certain things
+
+CC_TYPE=$(shell $(CC) --version |grep -c clang)
+ifeq ($(CC_TYPE),1)
+CC_TYPE=clang
+else
+CC_TYPE=gcc
+endif
+
+$(info - CC Type: ${CC_TYPE})
+
+########################################################
 
 ECMH_GITHASH:=$(shell git log --pretty=format:'%H' -n 1)
 CFLAGS += -DECMH_GITHASH=$(ECMH_GITHASH)
@@ -90,6 +103,7 @@ export MV
 export MAKE
 export RM
 export LDLIBS
+export CC_TYPE
 
 # Configure a default RPMDIR
 ifeq ($(shell echo "${RPMDIR}/" | grep -c "/"),1)

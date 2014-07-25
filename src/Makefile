@@ -25,7 +25,10 @@ OBJS	= ecmh.o linklist.o common.o interfaces.o groups.o grpint.o subscr.o
 
 # Standard Warnings
 WARNS	+=	-Wall -Wextra
+
+ifeq ($(CC_TYPE),gcc)
 WARNS	+=	-Werror
+endif
 
 # Extended warnings
 WARNS	+=	-Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings
@@ -38,8 +41,13 @@ WARNS	+=	-Wmissing-format-attribute
 WARNS	+=	-D_REENTRANT -D_THREAD_SAFE -pipe -Wunused -Winit-self
 WARNS	+=	-Wextra -Wno-long-long -Wmissing-include-dirs
 WARNS	+=	-Wno-variadic-macros
-WARNS	+=	-ansi -std=c99
+WARNS	+=	-std=c99
 WARNS	+=	-pedantic
+
+# clang does not know the -ansi option
+ifneq ($(CC_TYPE),clang)
+WARNS	+=	-ansi
+endif
 
 ifeq ($(shell echo $(ECMH_OPTIONS) | grep -c "DEBUG"),1)
 EXTRA	= -g -O0
