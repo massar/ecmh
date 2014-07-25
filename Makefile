@@ -77,7 +77,7 @@ RPMBUILD_SILENCE=>/dev/null 2>/dev/null
 export CC
 export MV
 export MAKE
-export CP
+export RM
 export LDLIBS
 
 # Configure a default RPMDIR
