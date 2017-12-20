@@ -43,6 +43,7 @@ WARNS	+=	-Wextra -Wno-long-long -Wmissing-include-dirs
 WARNS	+=	-Wno-variadic-macros
 WARNS	+=	-std=c99
 WARNS	+=	-pedantic
+WARNS	+=	-Wno-unused-result
 
 # clang does not know the -ansi option
 ifneq ($(CC_TYPE),clang)

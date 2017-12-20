@@ -1277,12 +1277,12 @@ static void mld_send_report(struct intnode *intn, const struct in6_addr *mca)
 	 *
 	 * Don't send packets to upstream interfaces when it is unknown what version they do
 	 */
+#ifdef ECMH_SUPPORT_MLD2
 	if (!g_conf->mld2only && (g_conf->mld1only || (intn->mld_version == 0 && !intn->upstream) || intn->mld_version == 1))
 	{
 		mld1_send_report(intn, mca);
 	}
 
-#ifdef ECMH_SUPPORT_MLD2
 	if (!g_conf->mld1only && (g_conf->mld2only || intn->mld_version == 0 || intn->mld_version == 2))
 	{
 		mld2_send_report(intn, mca);
