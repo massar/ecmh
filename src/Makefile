@@ -44,6 +44,10 @@ WARNS	+=	-Wno-variadic-macros
 WARNS	+=	-std=c99
 WARNS	+=	-pedantic
 WARNS	+=	-Wno-unused-result
+WARNS	+=	-Wno-unused-parameter
+WARNS	+=	-Wno-implicit-function-declaration
+WARNS	+=	-Wno-nested-externs
+WARNS	+=	-Wno-unused-function
 
 # clang does not know the -ansi option
 ifneq ($(CC_TYPE),clang)
