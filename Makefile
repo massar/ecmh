@@ -12,7 +12,7 @@
 ECMH=ecmh
 
 # The version of this release
-ECMH_VERSION=2014.07.25
+ECMH_VERSION=2019.03.08
 
 #####################################################
 # ECMH Compile Time Options

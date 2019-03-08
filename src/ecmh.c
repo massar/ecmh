@@ -784,8 +784,13 @@ static void icmp6_send(struct intnode *intn, const struct in6_addr *src, int typ
  *
  * src specifies the Source IPv6 address, may be NULL to replace it with any
  */
-static void mld_send_query(struct intnode *intn, const struct in6_addr *mca, const struct in6_addr *src, bool suppression);
-static void mld_send_query(struct intnode *intn, const struct in6_addr *mca, const struct in6_addr *src, bool suppression)
+#ifdef ECMH_SUPPORT_MLD2
+static void mld_send_query(struct intnode *intn, const struct in6_addr *mca);
+static void mld_send_query(struct intnode *intn, const struct in6_addr *mca)
+#else
+static void mld_send_query(struct intnode *intn, const struct in6_addr *mca);
+static void mld_send_query(struct intnode *intn, const struct in6_addr *mca)
+#endif
 {
 	struct mld_query_packet
 	{
@@ -861,21 +866,10 @@ static void mld_send_query(struct intnode *intn, const struct in6_addr *mca, con
 	}
 	else
 	{
-		if (src)
-		{
-			/* We specify one source IPv6 address */
-			packetlen		= sizeof(packet);
-			packet.mldq.nsrcs	= htons(1);
-			memcpy(&packet.src, src, sizeof(packet.src));
-		}
-		else
-		{
-			/* No sources given */
-			packetlen		= sizeof(packet) - sizeof(packet.src);
-			packet.mldq.nsrcs	= htons(0);
-		}
-
-		packet.mldq.suppress		= suppression ? 1 : 0;
+		/* No sources given */
+		packetlen			= sizeof(packet) - sizeof(packet.src);
+		packet.mldq.nsrcs		= htons(0);
+		packet.mldq.suppress		= 0;
 		packet.mldq.qrv			= ECMH_ROBUSTNESS_FACTOR;
 		packet.mldq.qqic		= ECMH_SUBSCRIPTION_TIMEOUT;
 	}
@@ -1277,7 +1271,11 @@ static void mld_send_report(struct intnode *intn, const struct in6_addr *mca)
 	 *
 	 * Don't send packets to upstream interfaces when it is unknown what version they do
 	 */
+#ifdef ECMH_SUPPORT_MLD2
 	if (!g_conf->mld2only && (g_conf->mld1only || (intn->mld_version == 0 && !intn->upstream) || intn->mld_version == 1))
+#else
+	if ((intn->mld_version == 0 && !intn->upstream) || intn->mld_version == 1)
+#endif
 	{
 		mld1_send_report(intn, mca);
 	}
@@ -1599,7 +1597,8 @@ static void l4_ipv6_icmpv6_mld1_reduction(struct intnode *intn, struct mld1 *mld
 	{
 		/* Requery if somebody still want it, as it will timeout otherwise. */
 		mld_log(LOG_DEBUG, "Querying for other listeners", &mld1->mca, intn);
-		mld_send_query(intn, &mld1->mca, NULL, false);
+
+		mld_send_query(intn, &mld1->mca);
 
 #ifdef ECMH_SUPPORT_MLD2
 		/* Skip Robustness */
@@ -2273,6 +2272,7 @@ static void sighup(int i)
 	signal(i, &sighup);
 }
 
+/* Send MLD reports */
 static void sigusr2(int i);
 static void sigusr2(int i)
 {
@@ -2285,7 +2285,11 @@ static void sigusr2(int i)
 		intn = int_find(g_conf->upstream_id);
 		if (intn)
 		{
+#ifdef ECMH_SUPPORT_MLD2
 			mld2_send_report(intn, NULL);
+#else
+			mld1_send_report(intn, NULL);
+#endif
 		}
 	}
 
@@ -2506,7 +2510,7 @@ static void send_mld_querys(void)
 			continue;
 		}
 
-		mld_send_query(intn, &any, NULL, false);
+		mld_send_query(intn, &any);
 	}
 
 	dolog(LOG_DEBUG, "Sending MLD Queries - done\n");

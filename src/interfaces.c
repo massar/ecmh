@@ -475,8 +475,8 @@ void int_set_mld_version(struct intnode *intn, unsigned int newversion)
 #else /* ECMH_SUPPORT_MLD2 */
 	else
 	{
-		dolog(LOG_DEBUG, "MLDv%u detected on %s/%u while that version is not supported\n",
-			newversion, intn->name);
+		dolog(LOG_DEBUG, "MLDv%u detected on %s/%" PRIu64 " while that version is not supported\n",
+			newversion, intn->name, intn->mld_version);
 	}
 #endif /* ECMH_SUPPORT_MLD2 */
 }
